@@ -165,7 +165,6 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _showPassword = false;
 
   void _onLogin() {
-    // TODO: tambahkan logika autentikasi di sini
     Navigator.pushNamedAndRemoveUntil(context, '/home', (route) => false);
   }
 
@@ -179,7 +178,6 @@ class _LoginScreenState extends State<LoginScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
             child: Column(
               children: [
-                // Card
                 Container(
                   padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
@@ -227,9 +225,10 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      // ── Kata Sandi dengan toggle visibility ──
                       AuthInput(
                         label: 'Kata Sandi',
-                        hint: '• • • • • •',
+                        hint: 'Masukkan kata sandi',
                         obscure: !_showPassword,
                         prefixIcon: const Icon(
                           Icons.lock_outline,
@@ -310,7 +309,11 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  bool _isObscure = true;
+  // ── State visibility untuk masing-masing field password ──
+  bool _showPassword = false;
+  bool _showConfirmPassword = false;
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: kBgGray,
@@ -336,57 +339,85 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Nama Lengkap
                       const AuthInput(
                         label: 'Nama Lengkap',
                         hint: 'Masukkan nama lengkap',
                         keyboardType: TextInputType.name,
                       ),
                       const SizedBox(height: 16),
+
+                      // Email
                       const AuthInput(
                         label: 'Email',
                         hint: 'nama@gmail.com',
                         keyboardType: TextInputType.emailAddress,
+                        prefixIcon: Icon(
+                          Icons.mail_outline,
+                          color: kHintColor,
+                          size: 20,
+                        ),
                       ),
                       const SizedBox(height: 16),
+
+                      // Nomor Telepon
                       const AuthInput(
                         label: 'Nomor Telepon',
                         hint: '0812xxxx',
                         keyboardType: TextInputType.phone,
-                      ),
-                      const SizedBox(height: 16),
-                      AuthInput(
-                        label: 'Kata Sandi',
-                        hint: 'Minimal 8 karakter',
-                        obscure: _isObscure,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _isObscure
-                                ? Icons.visibility
-                                : Icons.visibility_off,
-                          ),
-                          onPressed: () {
-                            setState(() {
-                              _isObscure = !_isObscure;
-                            });
-                          },
+                        prefixIcon: Icon(
+                          Icons.phone_outlined,
+                          color: kHintColor,
+                          size: 20,
                         ),
                       ),
                       const SizedBox(height: 16),
+
+                      // ── Kata Sandi dengan toggle visibility ──
+                      AuthInput(
+                        label: 'Kata Sandi',
+                        hint: 'Minimal 8 karakter',
+                        obscure: !_showPassword,
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                          color: kHintColor,
+                          size: 20,
+                        ),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            color: kHintColor,
+                            size: 20,
+                          ),
+                          onPressed: () =>
+                              setState(() => _showPassword = !_showPassword),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // ── Konfirmasi Kata Sandi dengan toggle visibility ──
                       AuthInput(
                         label: 'Konfirmasi Kata Sandi',
                         hint: 'Ulangi kata sandi',
-                        obscure: _isObscure,
+                        obscure: !_showConfirmPassword,
+                        prefixIcon: const Icon(
+                          Icons.lock_outline,
+                          color: kHintColor,
+                          size: 20,
+                        ),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _isObscure
-                                ? Icons.visibility
-                                : Icons.visibility_off,
+                            _showConfirmPassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
+                            color: kHintColor,
+                            size: 20,
                           ),
-                          onPressed: () {
-                            setState(() {
-                              _isObscure = !_isObscure;
-                            });
-                          },
+                          onPressed: () => setState(
+                            () => _showConfirmPassword = !_showConfirmPassword,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 24),
