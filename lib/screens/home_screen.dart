@@ -76,7 +76,6 @@ final List<PromoItem> promoList = [
   ),
 ];
 
-//PILIHAN POPULER
 final List<PopularItem> popularList = [
   PopularItem(
     title: 'Kebun Teh',
@@ -717,98 +716,65 @@ class _BerandaPage extends StatelessWidget {
       'icon': Icons.confirmation_number_outlined,
       'label': 'Tiket Wisata',
       'color': Color(0xFF6ECFB0),
-      'route': 'booking',
     },
     {
       'icon': Icons.restaurant_menu,
       'label': 'Kuliner\nSekitar',
       'color': Color(0xFFF5D59E),
-      'route': '',
-    },
-    {
-      'icon': Icons.hotel_outlined,
-      'label': 'Penginapan\nTerdekat',
-      'color': Color(0xFF89C4E1),
-      'route': 'penginapan',
     },
     {
       'icon': Icons.shopping_bag_outlined,
       'label': 'Pesanan',
       'color': Color(0xFFF5B87A),
-      'route': '',
     },
-    {
-      'icon': Icons.history,
-      'label': 'Riwayat',
-      'color': Color(0xFFE0E0E0),
-      'route': '',
-    },
+    {'icon': Icons.history, 'label': 'Riwayat', 'color': Color(0xFFE0E0E0)},
   ];
 
   Widget _buildCategories(BuildContext context) {
-    return SizedBox(
-      height: 90,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        itemCount: _categories.length,
-        itemBuilder: (context, index) {
-          final cat = _categories[index];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: _categories.map((cat) {
           return GestureDetector(
             onTap: () {
-              if (cat['route'] == 'booking') {
+              if (cat['label'] == 'Tiket Wisata') {
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const BookingScreen()),
                 );
-              } else if (cat['route'] == 'penginapan') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PenginapanScreen()),
-                );
               }
             },
-            child: Container(
-              width: 72,
-              margin: const EdgeInsets.only(right: 12),
-              child: Column(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: cat['color'] as Color,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: (cat['color'] as Color).withOpacity(0.35),
-                          blurRadius: 8,
-                          offset: const Offset(0, 3),
-                        ),
-                      ],
-                    ),
-                    child: Icon(
-                      cat['icon'] as IconData,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+            child: Column(
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: cat['color'] as Color,
+                    shape: BoxShape.circle,
                   ),
-                  const SizedBox(height: 7),
-                  Text(
-                    cat['label'] as String,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: kTextColor,
-                      fontWeight: FontWeight.w500,
-                      height: 1.3,
-                    ),
+                  child: Icon(
+                    cat['icon'] as IconData,
+                    color: Colors.white,
+                    size: 28,
                   ),
-                ],
-              ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  cat['label'] as String,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: kTextColor,
+                    fontWeight: FontWeight.w500,
+                    height: 1.3,
+                  ),
+                ),
+              ],
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }
@@ -931,7 +897,6 @@ class _BerandaPage extends StatelessWidget {
     );
   }
 
-  // Card besar — popularList[0] — tampilan asli (row horizontal dengan gambar kiri)
   Widget _buildFeaturedCard(BuildContext context) {
     final item = popularList[0];
     return Padding(
@@ -956,7 +921,6 @@ class _BerandaPage extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Gambar kiri
               ClipRRect(
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
@@ -971,7 +935,6 @@ class _BerandaPage extends StatelessWidget {
                       Container(width: 130, color: kInputBg),
                 ),
               ),
-              // Info kanan
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -1028,77 +991,66 @@ class _BerandaPage extends StatelessWidget {
     );
   }
 
-  // popularList[1..n] — horizontal scroll card kecil
   Widget _buildGridCards() {
     final items = popularList.skip(1).toList();
-    return SizedBox(
-      height: 170,
-      child: ListView.builder(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.only(left: 20, right: 8),
-        itemCount: items.length,
-        itemBuilder: (context, index) {
-          final item = items[index];
-          return GestureDetector(
-            onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const BookingScreen()),
-            ),
-            child: Container(
-              width: 140,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Gambar atas
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(14),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Row(
+        children: items.asMap().entries.map((entry) {
+          final index = entry.key;
+          final item = entry.value;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: index == 0 ? 8 : 0),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
                     ),
-                    child: Image.network(
-                      item.imageUrl,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Container(height: 100, color: kInputBg),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(14),
+                      ),
+                      child: Image.network(
+                        item.imageUrl,
+                        height: 110,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) =>
+                            Container(height: 110, color: kInputBg),
+                      ),
                     ),
-                  ),
-                  // Info bawah
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+                    Padding(
+                      padding: const EdgeInsets.all(10),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
                             item.title,
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: kTextColor,
                             ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 3),
+                          const SizedBox(height: 4),
                           Row(
                             children: [
                               const Icon(
                                 Icons.location_on,
-                                size: 11,
+                                size: 12,
                                 color: kHintColor,
                               ),
                               const SizedBox(width: 2),
@@ -1106,7 +1058,7 @@ class _BerandaPage extends StatelessWidget {
                                 child: Text(
                                   item.location,
                                   style: const TextStyle(
-                                    fontSize: 10,
+                                    fontSize: 11,
                                     color: kHintColor,
                                   ),
                                   maxLines: 1,
@@ -1118,12 +1070,12 @@ class _BerandaPage extends StatelessWidget {
                         ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
-        },
+        }).toList(),
       ),
     );
   }
@@ -1170,417 +1122,5 @@ class _BerandaPage extends StatelessWidget {
   String _formatCount(int count) {
     if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
     return count.toString();
-  }
-}
-
-// ─────────────────────────────────────────────
-// PENGINAPAN SCREEN
-// ─────────────────────────────────────────────
-
-class _PenginapanItem {
-  final String name;
-  final String location;
-  final double rating;
-  final int reviewCount;
-  final int hargaPerMalam;
-  final String imageUrl;
-  final List<String> fasilitas;
-
-  const _PenginapanItem({
-    required this.name,
-    required this.location,
-    required this.rating,
-    required this.reviewCount,
-    required this.hargaPerMalam,
-    required this.imageUrl,
-    required this.fasilitas,
-  });
-}
-
-const List<_PenginapanItem> _penginapanList = [
-  _PenginapanItem(
-    name: 'Hotel Dafam Jember',
-    location: 'Jl. PB Sudirman, Jember',
-    rating: 4.7,
-    reviewCount: 832,
-    hargaPerMalam: 350000,
-    imageUrl:
-        'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=400',
-    fasilitas: ['WiFi', 'Kolam Renang', 'Parkir'],
-  ),
-  _PenginapanItem(
-    name: 'The 1O1 Jember',
-    location: 'Jl. Hayam Wuruk, Jember',
-    rating: 4.5,
-    reviewCount: 614,
-    hargaPerMalam: 275000,
-    imageUrl:
-        'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=400',
-    fasilitas: ['WiFi', 'Sarapan', 'AC'],
-  ),
-  _PenginapanItem(
-    name: 'Grand Wahid Hotel',
-    location: 'Jl. Gajah Mada, Jember',
-    rating: 4.3,
-    reviewCount: 420,
-    hargaPerMalam: 200000,
-    imageUrl:
-        'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=400',
-    fasilitas: ['WiFi', 'Parkir', 'AC'],
-  ),
-  _PenginapanItem(
-    name: 'Villa Kebun Teh Silo',
-    location: 'Kecamatan Silo, Jember',
-    rating: 4.8,
-    reviewCount: 290,
-    hargaPerMalam: 450000,
-    imageUrl:
-        'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=400',
-    fasilitas: ['WiFi', 'Pemandangan', 'Dapur'],
-  ),
-];
-
-class PenginapanScreen extends StatefulWidget {
-  const PenginapanScreen({super.key});
-
-  @override
-  State<PenginapanScreen> createState() => _PenginapanScreenState();
-}
-
-class _PenginapanScreenState extends State<PenginapanScreen> {
-  String _selectedFilter = 'Semua';
-  final List<String> _filters = ['Semua', 'Hotel', 'Villa', 'Guest House'];
-
-  String _formatPrice(int price) {
-    return price.toString().replaceAllMapped(
-      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-      (m) => '${m[1]}.',
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBgGray,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kTextColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Penginapan Terdekat',
-          style: TextStyle(
-            color: kPrimaryGreen,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          // ── Header info & filter ──
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Lokasi aktif
-                Row(
-                  children: const [
-                    Icon(Icons.location_on, color: kPrimaryGreen, size: 16),
-                    SizedBox(width: 4),
-                    Text(
-                      'Sekitar Jember',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: kPrimaryGreen,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    SizedBox(width: 4),
-                    Text(
-                      '— 4 penginapan ditemukan',
-                      style: TextStyle(fontSize: 12, color: kHintColor),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-
-                // Filter chips
-                SizedBox(
-                  height: 34,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _filters.length,
-                    itemBuilder: (_, i) {
-                      final isActive = _selectedFilter == _filters[i];
-                      return GestureDetector(
-                        onTap: () =>
-                            setState(() => _selectedFilter = _filters[i]),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          margin: const EdgeInsets.only(right: 8),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 7,
-                          ),
-                          decoration: BoxDecoration(
-                            color: isActive ? kPrimaryGreen : Colors.white,
-                            borderRadius: BorderRadius.circular(50),
-                            border: Border.all(
-                              color: isActive
-                                  ? kPrimaryGreen
-                                  : const Color(0xFFDDDDDD),
-                            ),
-                          ),
-                          child: Text(
-                            _filters[i],
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: isActive ? Colors.white : kHintColor,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── List penginapan ──
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-              itemCount: _penginapanList.length,
-              itemBuilder: (context, index) {
-                final item = _penginapanList[index];
-                return _PenginapanCard(item: item, formatPrice: _formatPrice);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PenginapanCard extends StatelessWidget {
-  final _PenginapanItem item;
-  final String Function(int) formatPrice;
-
-  const _PenginapanCard({required this.item, required this.formatPrice});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Gambar ──
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-            child: Stack(
-              children: [
-                Image.network(
-                  item.imageUrl,
-                  height: 170,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) =>
-                      Container(height: 170, color: kInputBg),
-                ),
-                // Wishlist button
-                Positioned(
-                  top: 12,
-                  right: 12,
-                  child: Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_border,
-                      color: kHintColor,
-                      size: 18,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // ── Info ──
-          Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Nama + rating
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.name,
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700,
-                          color: kTextColor,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Row(
-                      children: [
-                        const Icon(Icons.star, color: Colors.amber, size: 14),
-                        const SizedBox(width: 3),
-                        Text(
-                          '${item.rating} (${item.reviewCount})',
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: kHintColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 5),
-
-                // Lokasi
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.location_on_outlined,
-                      size: 13,
-                      color: kHintColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        item.location,
-                        style: const TextStyle(fontSize: 12, color: kHintColor),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-
-                // Fasilitas chips
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: item.fasilitas.map((f) {
-                    return Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFE8F5F0),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Text(
-                        f,
-                        style: const TextStyle(
-                          fontSize: 11,
-                          color: kPrimaryGreen,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-                const SizedBox(height: 12),
-
-                // Harga + tombol pesan
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Mulai dari',
-                          style: TextStyle(fontSize: 11, color: kHintColor),
-                        ),
-                        const SizedBox(height: 2),
-                        RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: 'Rp ${formatPrice(item.hargaPerMalam)}',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: kPrimaryGreen,
-                                ),
-                              ),
-                              const TextSpan(
-                                text: ' /malam',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: kHintColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    SizedBox(
-                      height: 38,
-                      child: ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: kPrimaryGreen,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(50),
-                          ),
-                          elevation: 0,
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                        ),
-                        child: const Text(
-                          'Pesan',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 }
