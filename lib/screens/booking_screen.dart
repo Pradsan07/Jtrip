@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'order_store.dart';
 
 const kPrimaryGreen = Color(0xFF2D6A4F);
 const kBgGray = Color(0xFFF5F5F5);
@@ -829,11 +830,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
               height: 52,
               child: ElevatedButton.icon(
                 onPressed: () {
+                  // Tentukan status: Terjadwal jika tanggal >= hari ini
+                  final now = DateTime.now();
+                  final isToday =
+                      widget.selectedDate.year == now.year &&
+                      widget.selectedDate.month == now.month &&
+                      widget.selectedDate.day == now.day;
+                  final isFuture = widget.selectedDate.isAfter(now);
+                  final status = (isToday || isFuture)
+                      ? 'Terjadwal'
+                      : 'Selesai';
+
+                  // Buat ID unik & simpan ke OrderStore
+                  final orderId = OrderStore.generateId();
+                  orderStore.addOrder(
+                    OrderModel(
+                      id: orderId,
+                      namaWisata: 'Pantai Papuma',
+                      imageUrl:
+                          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
+                      tanggalKunjungan: widget.selectedDate,
+                      jumlahTiket: widget.ticketCount,
+                      totalBayar: _total,
+                      status: status,
+                      tanggalPesan: DateTime.now(),
+                    ),
+                  );
+
                   Navigator.push(
                     context,
                     MaterialPageRoute(
                       builder: (_) => DigitalTicketScreen(
                         selectedDate: widget.selectedDate,
+                        orderId: orderId,
                       ),
                     ),
                   );
@@ -928,8 +957,13 @@ class _SummaryRow extends StatelessWidget {
 
 class DigitalTicketScreen extends StatelessWidget {
   final DateTime selectedDate;
+  final String orderId;
 
-  const DigitalTicketScreen({super.key, required this.selectedDate});
+  const DigitalTicketScreen({
+    super.key,
+    required this.selectedDate,
+    required this.orderId,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1090,8 +1124,8 @@ class DigitalTicketScreen extends StatelessWidget {
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
-                  children: const [
-                    Text(
+                  children: [
+                    const Text(
                       'ID TRANSAKSI',
                       style: TextStyle(
                         fontSize: 11,
@@ -1100,10 +1134,10 @@ class DigitalTicketScreen extends StatelessWidget {
                         letterSpacing: 0.5,
                       ),
                     ),
-                    SizedBox(height: 8),
+                    const SizedBox(height: 8),
                     Text(
-                      '#JMR-882910',
-                      style: TextStyle(
+                      '#$orderId',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: kTextColor,
