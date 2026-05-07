@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:jtrip/services/api_service.dart';
 
 const kPrimaryGreen = Color(0xFF2D6A4F);
 const kBgGray = Color(0xFFF5F5F5);
@@ -15,19 +16,19 @@ const kLightGreen = Color(0xFFE8F5F0);
 
 class EditProfilScreen extends StatefulWidget {
   // Data profil awal diterima dari ProfilScreen
-  final String nama;
-  final String username;
-  final String email;
-  final String noTelp;
-  final String? fotoUrl; // URL foto lama (network)
-  final File? fotoFile; // File foto baru (lokal)
+  final String? nama;
+  final String? username;
+  final String? email;
+  final String? noTelp;
+  final String? fotoUrl;
+  final File? fotoFile;
 
   const EditProfilScreen({
     super.key,
-    required this.nama,
-    required this.username,
-    required this.email,
-    required this.noTelp,
+    this.nama,
+    this.username,
+    this.email,
+    this.noTelp,
     this.fotoUrl,
     this.fotoFile,
   });
@@ -54,42 +55,67 @@ class _EditProfilScreenState extends State<EditProfilScreen>
   final ImagePicker _picker = ImagePicker();
 
   @override
-  void initState() {
-    super.initState();
-    _namaCtrl = TextEditingController(text: widget.nama);
-    _usernameCtrl = TextEditingController(text: widget.username);
-    _emailCtrl = TextEditingController(text: widget.email);
-    _noTelpCtrl = TextEditingController(text: widget.noTelp);
-    _fotoFile = widget.fotoFile;
+void initState() {
+  super.initState();
 
-    // Deteksi perubahan
-    for (final ctrl in [_namaCtrl, _usernameCtrl, _emailCtrl, _noTelpCtrl]) {
-      ctrl.addListener(_onChanged);
-    }
+  _namaCtrl = TextEditingController(text: widget.nama ?? '');
+  _usernameCtrl = TextEditingController(text: widget.username ?? '');
+  _emailCtrl = TextEditingController(text: widget.email ?? '');
+  _noTelpCtrl = TextEditingController(text: widget.noTelp ?? '');
+  _fotoFile = widget.fotoFile;
 
-    // Animasi masuk
-    _animCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 500),
+  for (final ctrl in [_namaCtrl, _usernameCtrl, _emailCtrl, _noTelpCtrl]) {
+    ctrl.addListener(_onChanged);
+  }
+
+  _animCtrl = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 500),
+  );
+
+  _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
+  _slideAnim = Tween<Offset>(
+    begin: const Offset(0, 0.06),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
+
+  _animCtrl.forward();
+
+  _loadProfile();
+}
+
+Future<void> _loadProfile() async {
+  setState(() => _isLoading = true);
+
+  try {
+    final result = await ApiService.me();
+
+    print('DATA PROFILE: $result');
+
+    final data = result['data'];
+
+    setState(() {
+      _namaCtrl.text = data['name']?.toString() ?? '';
+      _emailCtrl.text = data['email']?.toString() ?? '';
+      _noTelpCtrl.text = data['no_telp']?.toString() ?? '';
+
+      // Kalau database kamu belum punya username, bisa kosongkan dulu
+      _usernameCtrl.text = data['username']?.toString() ?? '';
+
+      _hasChanges = false;
+      _isLoading = false;
+    });
+  } catch (e) {
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+
+    _showSnack(
+      e.toString().replaceFirst('Exception: ', ''),
+      isError: true,
     );
-    _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
-    _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.06),
-      end: Offset.zero,
-    ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut));
-
-    _animCtrl.forward();
   }
-
-  void _onChanged() {
-    final changed =
-        _namaCtrl.text != widget.nama ||
-        _usernameCtrl.text != widget.username ||
-        _emailCtrl.text != widget.email ||
-        _noTelpCtrl.text != widget.noTelp ||
-        _fotoFile != widget.fotoFile;
-    if (changed != _hasChanges) setState(() => _hasChanges = changed);
-  }
+}
 
   @override
   void dispose() {
@@ -207,28 +233,44 @@ class _EditProfilScreenState extends State<EditProfilScreen>
 
   // ── Simpan perubahan ──
   Future<void> _simpan() async {
-    if (!_hasChanges) return;
+  if (!_hasChanges) return;
 
-    // Validasi dasar
-    if (_namaCtrl.text.trim().isEmpty) {
-      _showSnack('Nama tidak boleh kosong', isError: true);
-      return;
-    }
-    if (!_emailCtrl.text.contains('@')) {
-      _showSnack('Format email tidak valid', isError: true);
-      return;
-    }
+  if (_namaCtrl.text.trim().isEmpty) {
+    _showSnack('Nama tidak boleh kosong', isError: true);
+    return;
+  }
 
-    setState(() => _isLoading = true);
+  if (!_emailCtrl.text.contains('@')) {
+    _showSnack('Format email tidak valid', isError: true);
+    return;
+  }
 
-    // Simulasi proses simpan
-    await Future.delayed(const Duration(milliseconds: 1200));
+  setState(() => _isLoading = true);
 
-    setState(() => _isLoading = false);
+  try {
+    await ApiService.updateProfile(
+      name: _namaCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      noTelp: _noTelpCtrl.text.trim(),
+
+      // Karena form edit kamu belum punya field ini,
+      // sementara isi default dulu.
+      kewarganegaraan: 'domestik',
+      jenisIdentitas: 'nik',
+      nomorIdentitas: '',
+      jenisKelamin: 'laki-laki',
+      tanggalLahir: '2000-01-01',
+    );
+
+    setState(() {
+      _isLoading = false;
+      _hasChanges = false;
+    });
 
     if (!mounted) return;
 
-    // Kembalikan data yang sudah diedit ke ProfilScreen
+    _showSnack('Profil berhasil diperbarui ✓');
+
     Navigator.pop(context, {
       'nama': _namaCtrl.text.trim(),
       'username': _usernameCtrl.text.trim(),
@@ -236,9 +278,17 @@ class _EditProfilScreenState extends State<EditProfilScreen>
       'noTelp': _noTelpCtrl.text.trim(),
       'fotoFile': _fotoFile,
     });
+  } catch (e) {
+    setState(() => _isLoading = false);
 
-    _showSnack('Profil berhasil diperbarui ✓');
+    if (!mounted) return;
+
+    _showSnack(
+      e.toString().replaceFirst('Exception: ', ''),
+      isError: true,
+    );
   }
+}
 
   void _showSnack(String msg, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
