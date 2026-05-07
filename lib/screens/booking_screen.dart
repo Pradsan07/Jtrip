@@ -68,21 +68,37 @@ List<DateTime> generateDays() {
 // ─────────────────────────────────────────────
 
 class BookingScreen extends StatefulWidget {
-  const BookingScreen({super.key});
+  final String namaWisata;
+  final String lokasi;
+  final String imageUrl;
+  final int hargaPerTiket;
+  final double rating;
+  final int jumlahUlasan;
+
+  const BookingScreen({
+    super.key,
+    this.namaWisata = 'Pantai Papuma',
+    this.lokasi =
+        'Desa Lojejer, Kecamatan Wuluhan, Kabupaten Jember, Jawa Timur',
+    this.imageUrl =
+        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
+    this.hargaPerTiket = 25000,
+    this.rating = 4.8,
+    this.jumlahUlasan = 2400,
+  });
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
 }
 
 class _BookingScreenState extends State<BookingScreen> {
-  int _selectedDayIndex = 0; // default hari ini
-  int _ticketCount = 2;
+  int _selectedDayIndex = 0;
+  int _ticketCount = 0;
 
-  // List 5 hari mulai hari ini
   final List<DateTime> _days = generateDays();
 
   DateTime get _selectedDate => _days[_selectedDayIndex];
-  int get _totalPrice => _ticketCount * 25000;
+  int get _totalPrice => _ticketCount * widget.hargaPerTiket;
 
   @override
   Widget build(BuildContext context) {
@@ -113,7 +129,7 @@ class _BookingScreenState extends State<BookingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Destination card ──
+                  // ── Destination card — data dari wisata yang diklik ──
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -133,7 +149,7 @@ class _BookingScreenState extends State<BookingScreen> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(8),
                           child: Image.network(
-                            'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=200',
+                            widget.imageUrl,
                             width: 70,
                             height: 70,
                             fit: BoxFit.cover,
@@ -145,42 +161,50 @@ class _BookingScreenState extends State<BookingScreen> {
                           ),
                         ),
                         const SizedBox(width: 12),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'WISATA ALAM',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: kHintColor,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Pantai Papuma',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: kTextColor,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Row(
-                              children: const [
-                                Icon(Icons.star, color: Colors.amber, size: 14),
-                                SizedBox(width: 4),
-                                Text(
-                                  '4.8 (2.4k ulasan)',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: kHintColor,
-                                  ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'WISATA ALAM',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: kHintColor,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
                                 ),
-                              ],
-                            ),
-                          ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                widget.namaWisata,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: kTextColor,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(
+                                    Icons.star,
+                                    color: Colors.amber,
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${widget.rating} (${_formatUlasan(widget.jumlahUlasan)} ulasan)',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      color: kHintColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
@@ -377,12 +401,12 @@ class _BookingScreenState extends State<BookingScreen> {
                   const Divider(height: 1),
 
                   // ── Lokasi ──
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Lokasi',
                           style: TextStyle(
                             fontSize: 14,
@@ -390,20 +414,20 @@ class _BookingScreenState extends State<BookingScreen> {
                             color: kTextColor,
                           ),
                         ),
-                        SizedBox(height: 6),
+                        const SizedBox(height: 6),
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.location_on_outlined,
                               size: 16,
                               color: kPrimaryGreen,
                             ),
-                            SizedBox(width: 6),
+                            const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                'Desa Lojejer, Kecamatan Wuluhan, Kabupaten Jember, Jawa Timur',
-                                style: TextStyle(
+                                widget.lokasi,
+                                style: const TextStyle(
                                   fontSize: 13,
                                   color: kHintColor,
                                   height: 1.4,
@@ -458,20 +482,27 @@ class _BookingScreenState extends State<BookingScreen> {
                   child: SizedBox(
                     height: 48,
                     child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => CheckoutScreen(
-                              ticketCount: _ticketCount,
-                              selectedDate: _selectedDate,
-                            ),
-                          ),
-                        );
-                      },
+                      onPressed: _ticketCount == 0
+                          ? null
+                          : () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => CheckoutScreen(
+                                    ticketCount: _ticketCount,
+                                    selectedDate: _selectedDate,
+                                    namaWisata: widget.namaWisata,
+                                    imageUrl: widget.imageUrl,
+                                    hargaPerTiket: widget.hargaPerTiket,
+                                  ),
+                                ),
+                              );
+                            },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: kPrimaryGreen,
                         foregroundColor: Colors.white,
+                        disabledBackgroundColor: kInputBg,
+                        disabledForegroundColor: kHintColor,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(50),
                         ),
@@ -500,6 +531,11 @@ class _BookingScreenState extends State<BookingScreen> {
         ],
       ),
     );
+  }
+
+  String _formatUlasan(int count) {
+    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
+    return count.toString();
   }
 
   String _formatPrice(int price) {
@@ -544,12 +580,19 @@ class _InfoRow extends StatelessWidget {
 
 class CheckoutScreen extends StatefulWidget {
   final int ticketCount;
-  final DateTime selectedDate; // ← terima DateTime langsung
+  final DateTime selectedDate;
+  final String namaWisata;
+  final String imageUrl;
+  final int hargaPerTiket;
 
   const CheckoutScreen({
     super.key,
     required this.ticketCount,
     required this.selectedDate,
+    this.namaWisata = 'Pantai Papuma',
+    this.imageUrl =
+        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
+    this.hargaPerTiket = 25000,
   });
 
   @override
@@ -566,7 +609,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     {'label': '💳', 'name': 'Kartu Kredit/Debit'},
   ];
 
-  int get _subtotal => widget.ticketCount * 25000;
+  int get _subtotal => widget.ticketCount * widget.hargaPerTiket;
   int get _serviceFee => 2500;
   int get _total => _subtotal + _serviceFee;
 
@@ -652,7 +695,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                         ClipRRect(
                           borderRadius: BorderRadius.circular(10),
                           child: Image.network(
-                            'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
+                            widget.imageUrl,
                             height: 140,
                             width: double.infinity,
                             fit: BoxFit.cover,
@@ -661,9 +704,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                           ),
                         ),
                         const SizedBox(height: 14),
-                        const Text(
-                          'Pantai Papuma',
-                          style: TextStyle(
+                        Text(
+                          widget.namaWisata,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: kTextColor,
@@ -841,14 +884,12 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       ? 'Terjadwal'
                       : 'Selesai';
 
-                  // Buat ID unik & simpan ke OrderStore
                   final orderId = OrderStore.generateId();
                   orderStore.addOrder(
                     OrderModel(
                       id: orderId,
-                      namaWisata: 'Pantai Papuma',
-                      imageUrl:
-                          'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
+                      namaWisata: widget.namaWisata,
+                      imageUrl: widget.imageUrl,
                       tanggalKunjungan: widget.selectedDate,
                       jumlahTiket: widget.ticketCount,
                       totalBayar: _total,
@@ -863,6 +904,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                       builder: (_) => DigitalTicketScreen(
                         selectedDate: widget.selectedDate,
                         orderId: orderId,
+                        namaWisata: widget.namaWisata,
+                        imageUrl: widget.imageUrl,
                       ),
                     ),
                   );
@@ -958,11 +1001,16 @@ class _SummaryRow extends StatelessWidget {
 class DigitalTicketScreen extends StatelessWidget {
   final DateTime selectedDate;
   final String orderId;
+  final String namaWisata;
+  final String imageUrl;
 
   const DigitalTicketScreen({
     super.key,
     required this.selectedDate,
     required this.orderId,
+    this.namaWisata = 'Pantai Papuma',
+    this.imageUrl =
+        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
   });
 
   @override
@@ -997,7 +1045,7 @@ class DigitalTicketScreen extends StatelessWidget {
               child: Stack(
                 children: [
                   Image.network(
-                    'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
+                    imageUrl,
                     height: 200,
                     width: double.infinity,
                     fit: BoxFit.cover,
@@ -1029,9 +1077,9 @@ class DigitalTicketScreen extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
-                          'Pantai Papuma',
-                          style: TextStyle(
+                        Text(
+                          namaWisata,
+                          style: const TextStyle(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
@@ -1202,6 +1250,35 @@ class DigitalTicketScreen extends StatelessWidget {
                 Icons.confirmation_number_outlined,
                 color: kHintColor.withOpacity(0.4),
                 size: 36,
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Tombol kembali ke homescreen
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pushNamedAndRemoveUntil(
+                    context,
+                    '/home',
+                    (route) => false,
+                  );
+                },
+                icon: const Icon(Icons.home_rounded, size: 20),
+                label: const Text(
+                  'Kembali ke Beranda',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  elevation: 0,
+                ),
               ),
             ),
             const SizedBox(height: 20),

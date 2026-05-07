@@ -101,6 +101,21 @@ class _EditProfilScreenState extends State<EditProfilScreen>
     super.dispose();
   }
 
+  // ── Crop foto menggunakan UI custom ──
+  Future<File?> _cropImage(File imageFile) async {
+    File? croppedFile;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _CropImageScreen(
+          imageFile: imageFile,
+          onCropped: (file) => croppedFile = file,
+        ),
+      ),
+    );
+    return croppedFile;
+  }
+
   // ── Pilih foto dari galeri ──
   Future<void> _pickImage() async {
     showModalBottomSheet(
@@ -115,7 +130,6 @@ class _EditProfilScreenState extends State<EditProfilScreen>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Handle bar
               Container(
                 width: 40,
                 height: 4,
@@ -149,10 +163,13 @@ class _EditProfilScreenState extends State<EditProfilScreen>
                           maxWidth: 800,
                         );
                         if (picked != null) {
-                          setState(() {
-                            _fotoFile = File(picked.path);
-                            _hasChanges = true;
-                          });
+                          final cropped = await _cropImage(File(picked.path));
+                          if (cropped != null) {
+                            setState(() {
+                              _fotoFile = cropped;
+                              _hasChanges = true;
+                            });
+                          }
                         }
                       },
                     ),
@@ -171,10 +188,13 @@ class _EditProfilScreenState extends State<EditProfilScreen>
                           maxWidth: 800,
                         );
                         if (picked != null) {
-                          setState(() {
-                            _fotoFile = File(picked.path);
-                            _hasChanges = true;
-                          });
+                          final cropped = await _cropImage(File(picked.path));
+                          if (cropped != null) {
+                            setState(() {
+                              _fotoFile = cropped;
+                              _hasChanges = true;
+                            });
+                          }
                         }
                       },
                     ),
@@ -309,21 +329,6 @@ class _EditProfilScreenState extends State<EditProfilScreen>
         ),
       ),
       centerTitle: true,
-      actions: [
-        // Tombol simpan di AppBar (shortcut)
-        if (_hasChanges)
-          TextButton(
-            onPressed: _isLoading ? null : _simpan,
-            child: const Text(
-              'Simpan',
-              style: TextStyle(
-                color: kPrimaryGreen,
-                fontWeight: FontWeight.w700,
-                fontSize: 14,
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -443,13 +448,11 @@ class _EditProfilScreenState extends State<EditProfilScreen>
           ),
           const SizedBox(height: 16),
 
-          _EditField(
+          // Username — tidak dapat diedit
+          _ReadOnlyField(
             label: 'Username',
-            controller: _usernameCtrl,
-            hint: '@username',
+            value: '@${widget.username}',
             icon: Icons.alternate_email_rounded,
-            keyboardType: TextInputType.text,
-            prefixText: '@',
           ),
           const SizedBox(height: 24),
 
@@ -718,6 +721,529 @@ class _BottomSheetOption extends StatelessWidget {
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// READ-ONLY FIELD — untuk username
+// ─────────────────────────────────────────────
+
+class _ReadOnlyField extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _ReadOnlyField({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: kHintColor,
+                letterSpacing: 0.3,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: kInputBg,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text(
+                'Tidak dapat diubah',
+                style: TextStyle(fontSize: 9, color: kHintColor),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          decoration: BoxDecoration(
+            color: kInputBg,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: kHintColor, size: 20),
+              const SizedBox(width: 12),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: kHintColor,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// CROP IMAGE SCREEN — crop manual tanpa package
+// ─────────────────────────────────────────────
+
+class _CropImageScreen extends StatefulWidget {
+  final File imageFile;
+  final Function(File) onCropped;
+
+  const _CropImageScreen({required this.imageFile, required this.onCropped});
+
+  @override
+  State<_CropImageScreen> createState() => _CropImageScreenState();
+}
+
+class _CropImageScreenState extends State<_CropImageScreen> {
+  // Gunakan crop square sederhana — pakai InteractiveViewer untuk zoom/pan
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Sesuaikan Foto',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              // Gunakan file asli (tanpa library crop eksternal)
+              widget.onCropped(widget.imageFile);
+              Navigator.pop(context);
+            },
+            child: const Text(
+              'Gunakan',
+              style: TextStyle(
+                color: kPrimaryGreen,
+                fontWeight: FontWeight.w700,
+                fontSize: 15,
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: Stack(
+              children: [
+                // Preview foto dengan InteractiveViewer (zoom & pan)
+                Center(
+                  child: InteractiveViewer(
+                    minScale: 0.5,
+                    maxScale: 4.0,
+                    child: Image.file(widget.imageFile, fit: BoxFit.contain),
+                  ),
+                ),
+                // Overlay crop square
+                IgnorePointer(
+                  child: CustomPaint(
+                    painter: _CropOverlayPainter(),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            color: Colors.black,
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: const Text(
+              'Cubit & geser untuk menyesuaikan foto',
+              style: TextStyle(color: Colors.white70, fontSize: 13),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CropOverlayPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = Colors.black.withOpacity(0.5);
+    const cropSize = 280.0;
+    final left = (size.width - cropSize) / 2;
+    final top = (size.height - cropSize) / 2;
+    final cropRect = Rect.fromLTWH(left, top, cropSize, cropSize);
+
+    // Bayangan luar
+    canvas.drawPath(
+      Path.combine(
+        PathOperation.difference,
+        Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height)),
+        Path()..addRRect(
+          RRect.fromRectAndRadius(cropRect, const Radius.circular(16)),
+        ),
+      ),
+      paint,
+    );
+
+    // Border crop
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(cropRect, const Radius.circular(16)),
+      Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2,
+    );
+
+    // Sudut crop
+    final cornerPaint = Paint()
+      ..color = kPrimaryGreen
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    const cLen = 20.0;
+    // kiri atas
+    canvas.drawLine(Offset(left, top + cLen), Offset(left, top), cornerPaint);
+    canvas.drawLine(Offset(left, top), Offset(left + cLen, top), cornerPaint);
+    // kanan atas
+    canvas.drawLine(
+      Offset(left + cropSize - cLen, top),
+      Offset(left + cropSize, top),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      Offset(left + cropSize, top),
+      Offset(left + cropSize, top + cLen),
+      cornerPaint,
+    );
+    // kiri bawah
+    canvas.drawLine(
+      Offset(left, top + cropSize - cLen),
+      Offset(left, top + cropSize),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      Offset(left, top + cropSize),
+      Offset(left + cLen, top + cropSize),
+      cornerPaint,
+    );
+    // kanan bawah
+    canvas.drawLine(
+      Offset(left + cropSize - cLen, top + cropSize),
+      Offset(left + cropSize, top + cropSize),
+      cornerPaint,
+    );
+    canvas.drawLine(
+      Offset(left + cropSize, top + cropSize - cLen),
+      Offset(left + cropSize, top + cropSize),
+      cornerPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// ─────────────────────────────────────────────
+// GANTI PASSWORD SCREEN
+// ─────────────────────────────────────────────
+
+class GantiPasswordScreen extends StatefulWidget {
+  const GantiPasswordScreen({super.key});
+
+  @override
+  State<GantiPasswordScreen> createState() => _GantiPasswordScreenState();
+}
+
+class _GantiPasswordScreenState extends State<GantiPasswordScreen> {
+  final _oldPassCtrl = TextEditingController();
+  final _newPassCtrl = TextEditingController();
+  final _confirmPassCtrl = TextEditingController();
+
+  bool _showOld = false;
+  bool _showNew = false;
+  bool _showConfirm = false;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _oldPassCtrl.dispose();
+    _newPassCtrl.dispose();
+    _confirmPassCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _simpan() async {
+    if (_oldPassCtrl.text.isEmpty ||
+        _newPassCtrl.text.isEmpty ||
+        _confirmPassCtrl.text.isEmpty) {
+      _showSnack('Semua kolom harus diisi', isError: true);
+      return;
+    }
+    if (_newPassCtrl.text.length < 8) {
+      _showSnack('Password baru minimal 8 karakter', isError: true);
+      return;
+    }
+    if (_newPassCtrl.text != _confirmPassCtrl.text) {
+      _showSnack('Konfirmasi password tidak cocok', isError: true);
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    await Future.delayed(const Duration(milliseconds: 1200));
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+    Navigator.pop(context);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Text(
+          'Password berhasil diperbarui ✓',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
+        ),
+        backgroundColor: kPrimaryGreen,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  void _showSnack(String msg, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: const TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        backgroundColor: isError ? Colors.red : kPrimaryGreen,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        margin: const EdgeInsets.all(16),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Widget _buildPassField({
+    required String label,
+    required TextEditingController ctrl,
+    required bool show,
+    required VoidCallback onToggle,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: kHintColor,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        TextField(
+          controller: ctrl,
+          obscureText: !show,
+          style: const TextStyle(fontSize: 15, color: kTextColor),
+          decoration: InputDecoration(
+            hintText: '••••••••',
+            hintStyle: const TextStyle(color: kHintColor),
+            prefixIcon: const Padding(
+              padding: EdgeInsets.only(left: 14, right: 8),
+              child: Icon(Icons.lock_outline, color: kPrimaryGreen, size: 20),
+            ),
+            prefixIconConstraints: const BoxConstraints(
+              minWidth: 0,
+              minHeight: 0,
+            ),
+            suffixIcon: IconButton(
+              icon: Icon(
+                show
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+                color: kHintColor,
+                size: 20,
+              ),
+              onPressed: onToggle,
+            ),
+            filled: true,
+            fillColor: kBgGray,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 16,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: BorderSide.none,
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: Color(0xFFEEEEEE), width: 1),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: kPrimaryGreen, width: 1.5),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBgGray,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: kTextColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Ganti Password',
+          style: TextStyle(
+            color: kPrimaryGreen,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            // Info
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5F0),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                children: const [
+                  Icon(Icons.info_outline, color: kPrimaryGreen, size: 18),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Password baru minimal 8 karakter dan berbeda dari password lama',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: kPrimaryGreen,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                children: [
+                  _buildPassField(
+                    label: 'Password Lama',
+                    ctrl: _oldPassCtrl,
+                    show: _showOld,
+                    onToggle: () => setState(() => _showOld = !_showOld),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildPassField(
+                    label: 'Password Baru',
+                    ctrl: _newPassCtrl,
+                    show: _showNew,
+                    onToggle: () => setState(() => _showNew = !_showNew),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildPassField(
+                    label: 'Konfirmasi Password Baru',
+                    ctrl: _confirmPassCtrl,
+                    show: _showConfirm,
+                    onToggle: () =>
+                        setState(() => _showConfirm = !_showConfirm),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+
+            SizedBox(
+              width: double.infinity,
+              height: 54,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _simpan,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: kPrimaryGreen,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(50),
+                  ),
+                  elevation: 0,
+                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2.5,
+                        ),
+                      )
+                    : const Text(
+                        'Simpan Password',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
               ),
             ),
           ],

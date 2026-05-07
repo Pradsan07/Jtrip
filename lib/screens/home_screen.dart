@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'booking_screen.dart';
 import 'other_screens.dart';
+import 'wishlist_store.dart';
 
 const kPrimaryGreen = Color(0xFF2D6A4F);
 const kBgGray = Color(0xFFF5F5F5);
@@ -422,12 +423,20 @@ class _WisataPageState extends State<WisataPage> {
                     padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                     itemCount: _filtered.length,
                     itemBuilder: (context, index) {
+                      final item = _filtered[index];
                       return _WisataCard(
-                        item: _filtered[index],
+                        item: item,
                         onTap: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => const BookingScreen(),
+                            builder: (_) => BookingScreen(
+                              namaWisata: item.name,
+                              lokasi: item.location,
+                              imageUrl: item.imageUrl,
+                              hargaPerTiket: item.price,
+                              rating: 4.8,
+                              jumlahUlasan: 1000,
+                            ),
                           ),
                         ),
                       );
@@ -464,19 +473,44 @@ class _WisataCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
+          // Image dengan wishlist button
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
-            child: Image.network(
-              item.imageUrl,
-              height: 175,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                height: 175,
-                color: kInputBg,
-                child: const Icon(Icons.image, color: kHintColor, size: 40),
-              ),
+            child: Stack(
+              children: [
+                Image.network(
+                  item.imageUrl,
+                  height: 175,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    height: 175,
+                    color: kInputBg,
+                    child: const Icon(Icons.image, color: kHintColor, size: 40),
+                  ),
+                ),
+                // Wishlist button pojok kanan atas
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Center(
+                      child: _WishlistButton(
+                        itemId: item.name,
+                        itemName: item.name,
+                        imageUrl: item.imageUrl,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -604,8 +638,33 @@ class _WisataCard extends StatelessWidget {
 // BERANDA PAGE
 // ─────────────────────────────────────────────
 
-class _BerandaPage extends StatelessWidget {
+class _BerandaPage extends StatefulWidget {
   const _BerandaPage();
+
+  @override
+  State<_BerandaPage> createState() => _BerandaPageState();
+}
+
+class _BerandaPageState extends State<_BerandaPage> {
+  final TextEditingController _searchCtrl = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  List<PopularItem> get _filteredPopular {
+    if (_searchQuery.isEmpty) return popularList;
+    return popularList
+        .where(
+          (item) =>
+              item.title.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+              item.location.toLowerCase().contains(_searchQuery.toLowerCase()),
+        )
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -614,10 +673,7 @@ class _BerandaPage extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: kTextColor),
-          onPressed: () {},
-        ),
+        automaticallyImplyLeading: false, // hapus ikon strip 3
         title: const Text(
           'Jelajahi Jember',
           style: TextStyle(
@@ -648,15 +704,39 @@ class _BerandaPage extends StatelessWidget {
             const SizedBox(height: 20),
             _buildCategories(context),
             const SizedBox(height: 20),
-            _buildPromoSection(),
-            const SizedBox(height: 24),
+            if (_searchQuery.isEmpty) ...[
+              _buildPromoSection(),
+              const SizedBox(height: 24),
+            ],
             _buildPopularHeader(),
             const SizedBox(height: 12),
-            _buildFeaturedCard(context),
-            const SizedBox(height: 12),
-            _buildGridCards(),
+            if (_searchQuery.isNotEmpty) ...[
+              // Hasil pencarian — list vertikal rapi
+              if (_filteredPopular.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: kHintColor),
+                        SizedBox(height: 12),
+                        Text(
+                          'Tidak ada hasil ditemukan',
+                          style: TextStyle(color: kHintColor, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                _buildSearchResults(),
+            ] else ...[
+              _buildFeaturedCard(context),
+              const SizedBox(height: 12),
+              _buildGridCards(),
+            ],
             const SizedBox(height: 16),
-            _buildNearbyBanner(),
+            if (_searchQuery.isEmpty) _buildNearbyBanner(),
             const SizedBox(height: 24),
           ],
         ),
@@ -697,16 +777,26 @@ class _BerandaPage extends StatelessWidget {
           color: kInputBg,
           borderRadius: BorderRadius.circular(50),
         ),
-        child: const Row(
-          children: [
-            SizedBox(width: 16),
-            Icon(Icons.search, color: kHintColor, size: 20),
-            SizedBox(width: 10),
-            Text(
-              'Cari destinasi atau kuliner...',
-              style: TextStyle(color: kHintColor, fontSize: 14),
-            ),
-          ],
+        child: TextField(
+          controller: _searchCtrl,
+          onChanged: (val) => setState(() => _searchQuery = val),
+          style: const TextStyle(fontSize: 14, color: kTextColor),
+          decoration: InputDecoration(
+            hintText: 'Cari destinasi atau kuliner...',
+            hintStyle: const TextStyle(color: kHintColor, fontSize: 14),
+            prefixIcon: const Icon(Icons.search, color: kHintColor, size: 20),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear, color: kHintColor, size: 18),
+                    onPressed: () => setState(() {
+                      _searchCtrl.clear();
+                      _searchQuery = '';
+                    }),
+                  )
+                : null,
+            border: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 14),
+          ),
         ),
       ),
     );
@@ -714,16 +804,16 @@ class _BerandaPage extends StatelessWidget {
 
   final List<Map<String, dynamic>> _categories = const [
     {
-      'icon': Icons.confirmation_number_outlined,
-      'label': 'Tiket Wisata',
+      'icon': Icons.explore_outlined,
+      'label': 'Jelajahi\nWisata',
       'color': Color(0xFF6ECFB0),
-      'route': 'booking',
+      'route': 'wisata',
     },
     {
       'icon': Icons.restaurant_menu,
       'label': 'Kuliner\nSekitar',
       'color': Color(0xFFF5D59E),
-      'route': '',
+      'route': 'kuliner',
     },
     {
       'icon': Icons.hotel_outlined,
@@ -735,63 +825,82 @@ class _BerandaPage extends StatelessWidget {
       'icon': Icons.shopping_bag_outlined,
       'label': 'Pesanan',
       'color': Color(0xFFF5B87A),
-      'route': '',
-    },
-    {
-      'icon': Icons.history,
-      'label': 'Riwayat',
-      'color': Color(0xFFE0E0E0),
-      'route': '',
+      'route': 'pesanan',
     },
   ];
 
   Widget _buildCategories(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 12),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: _categories.map((cat) {
           return GestureDetector(
             onTap: () {
-              if (cat['route'] == 'booking') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const BookingScreen()),
-                );
-              } else if (cat['route'] == 'penginapan') {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const PenginapanScreen()),
-                );
+              switch (cat['route']) {
+                case 'wisata':
+                  // Switch ke tab Wisata via bottom nav
+                  final homeState = context
+                      .findAncestorStateOfType<_HomeScreenState>();
+                  homeState?.setState(() => homeState._currentIndex = 1);
+                  break;
+                case 'pesanan':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PesananScreen()),
+                  );
+                  break;
+                case 'kuliner':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const KulinerScreen()),
+                  );
+                  break;
+                case 'penginapan':
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const PenginapanScreen()),
+                  );
+                  break;
               }
             },
-            child: Column(
-              children: [
-                Container(
-                  width: 50,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    color: cat['color'] as Color,
-                    shape: BoxShape.circle,
+            child: SizedBox(
+              width: 76,
+              child: Column(
+                children: [
+                  Container(
+                    width: 62,
+                    height: 62,
+                    decoration: BoxDecoration(
+                      color: cat['color'] as Color,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: (cat['color'] as Color).withOpacity(0.3),
+                          blurRadius: 8,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      cat['icon'] as IconData,
+                      color: Colors.white,
+                      size: 26,
+                    ),
                   ),
-                  child: Icon(
-                    cat['icon'] as IconData,
-                    color: Colors.white,
-                    size: 20,
+                  const SizedBox(height: 8),
+                  Text(
+                    cat['label'] as String,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: kTextColor,
+                      fontWeight: FontWeight.w600,
+                      height: 1.3,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  cat['label'] as String,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: kTextColor,
-                    fontWeight: FontWeight.w500,
-                    height: 1.3,
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           );
         }).toList(),
@@ -893,39 +1002,190 @@ class _BerandaPage extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'Pilihan Populer',
-            style: TextStyle(
+          Text(
+            _searchQuery.isEmpty
+                ? 'Pilihan Populer'
+                : 'Hasil Pencarian (${_filteredPopular.length})',
+            style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: kTextColor,
             ),
           ),
-          GestureDetector(
-            onTap: () {},
-            child: const Text(
-              'Lihat Semua',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: kPrimaryGreen,
+          if (_searchQuery.isEmpty)
+            GestureDetector(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const _SemuaPopularScreen()),
+              ),
+              child: const Text(
+                'Lihat Semua',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: kPrimaryGreen,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  // Card besar — popularList[0] — tampilan asli (row horizontal dengan gambar kiri)
+  // Tampilan hasil search yang rapi — list vertikal
+  Widget _buildSearchResults() {
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: _filteredPopular.length,
+      itemBuilder: (context, index) {
+        final item = _filteredPopular[index];
+        return GestureDetector(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BookingScreen(
+                namaWisata: item.title,
+                lokasi: item.location,
+                imageUrl: item.imageUrl,
+                hargaPerTiket:
+                    int.tryParse(
+                      item.price.replaceAll(RegExp(r'[^0-9]'), ''),
+                    ) ??
+                    25000,
+                rating: item.rating,
+                jumlahUlasan: item.reviewCount,
+              ),
+            ),
+          ),
+          child: Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                // Gambar
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: Image.network(
+                    item.imageUrl,
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) =>
+                        Container(width: 70, height: 70, color: kInputBg),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // Info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: kTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.location_on,
+                            size: 12,
+                            color: kHintColor,
+                          ),
+                          const SizedBox(width: 3),
+                          Expanded(
+                            child: Text(
+                              item.location,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: kHintColor,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.star, color: Colors.amber, size: 12),
+                          const SizedBox(width: 3),
+                          Text(
+                            '${item.rating}',
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: kHintColor,
+                            ),
+                          ),
+                          const Spacer(),
+                          Text(
+                            item.price,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: kPrimaryGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // Wishlist
+                _WishlistButton(
+                  itemId: item.title,
+                  itemName: item.title,
+                  imageUrl: item.imageUrl,
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  // Card besar — item pertama dari hasil filter
   Widget _buildFeaturedCard(BuildContext context) {
-    final item = popularList[0];
+    if (_filteredPopular.isEmpty) return const SizedBox.shrink();
+    final item = _filteredPopular[0];
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const BookingScreen()),
+          MaterialPageRoute(
+            builder: (_) => BookingScreen(
+              namaWisata: item.title,
+              lokasi: item.location,
+              imageUrl: item.imageUrl,
+              hargaPerTiket:
+                  int.tryParse(item.price.replaceAll(RegExp(r'[^0-9]'), '')) ??
+                  25000,
+              rating: item.rating,
+              jumlahUlasan: item.reviewCount,
+            ),
+          ),
         ),
         child: Container(
           height: 130,
@@ -942,7 +1202,6 @@ class _BerandaPage extends StatelessWidget {
           ),
           child: Row(
             children: [
-              // Gambar kiri
               ClipRRect(
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(16),
@@ -957,48 +1216,54 @@ class _BerandaPage extends StatelessWidget {
                       Container(width: 130, color: kInputBg),
                 ),
               ),
-              // Info kanan
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Row(
                         children: [
-                          const Icon(Icons.star, color: Colors.amber, size: 14),
+                          const Icon(Icons.star, color: Colors.amber, size: 13),
                           const SizedBox(width: 4),
                           Text(
                             '${item.rating}(${_formatCount(item.reviewCount)})',
                             style: const TextStyle(
-                              fontSize: 12,
+                              fontSize: 11,
                               color: kHintColor,
                             ),
                           ),
+                          const Spacer(),
+                          // ❤️ Tombol wishlist
+                          _WishlistButton(
+                            itemId: item.title,
+                            itemName: item.title,
+                            imageUrl: item.imageUrl,
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 6),
+                      const SizedBox(height: 4),
                       Text(
                         item.title,
                         style: const TextStyle(
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: kTextColor,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 3),
                       Text(
                         item.description,
-                        style: const TextStyle(fontSize: 12, color: kHintColor),
+                        style: const TextStyle(fontSize: 11, color: kHintColor),
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         item.price,
                         style: const TextStyle(
-                          fontSize: 14,
+                          fontSize: 13,
                           fontWeight: FontWeight.w700,
                           color: kPrimaryGreen,
                         ),
@@ -1014,11 +1279,12 @@ class _BerandaPage extends StatelessWidget {
     );
   }
 
-  // popularList[1..n] — horizontal scroll card kecil
+  // Card kecil horizontal scroll — item ke-2 dst
   Widget _buildGridCards() {
-    final items = popularList.skip(1).toList();
+    final items = _filteredPopular.skip(1).toList();
+    if (items.isEmpty) return const SizedBox.shrink();
     return SizedBox(
-      height: 170,
+      height: 185,
       child: ListView.builder(
         scrollDirection: Axis.horizontal,
         padding: const EdgeInsets.only(left: 20, right: 8),
@@ -1028,7 +1294,20 @@ class _BerandaPage extends StatelessWidget {
           return GestureDetector(
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const BookingScreen()),
+              MaterialPageRoute(
+                builder: (_) => BookingScreen(
+                  namaWisata: item.title,
+                  lokasi: item.location,
+                  imageUrl: item.imageUrl,
+                  hargaPerTiket:
+                      int.tryParse(
+                        item.price.replaceAll(RegExp(r'[^0-9]'), ''),
+                      ) ??
+                      25000,
+                  rating: item.rating,
+                  jumlahUlasan: item.reviewCount,
+                ),
+              ),
             ),
             child: Container(
               width: 140,
@@ -1047,21 +1326,34 @@ class _BerandaPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Gambar atas
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(14),
                     ),
-                    child: Image.network(
-                      item.imageUrl,
-                      height: 100,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) =>
-                          Container(height: 100, color: kInputBg),
+                    child: Stack(
+                      children: [
+                        Image.network(
+                          item.imageUrl,
+                          height: 100,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) =>
+                              Container(height: 100, color: kInputBg),
+                        ),
+                        // ❤️ Wishlist di pojok gambar
+                        Positioned(
+                          top: 6,
+                          right: 6,
+                          child: _WishlistButton(
+                            itemId: item.title,
+                            itemName: item.title,
+                            imageUrl: item.imageUrl,
+                            size: 16,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  // Info bawah
                   Expanded(
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
@@ -1156,6 +1448,233 @@ class _BerandaPage extends StatelessWidget {
   String _formatCount(int count) {
     if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
     return count.toString();
+  }
+}
+
+// ─────────────────────────────────────────────
+// SEMUA POPULAR SCREEN
+// ─────────────────────────────────────────────
+
+class _SemuaPopularScreen extends StatelessWidget {
+  const _SemuaPopularScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: kBgGray,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: kTextColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Pilihan Populer',
+          style: TextStyle(
+            color: kPrimaryGreen,
+            fontWeight: FontWeight.w700,
+            fontSize: 18,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: ListView.builder(
+        padding: const EdgeInsets.all(20),
+        itemCount: popularList.length,
+        itemBuilder: (context, index) {
+          final item = popularList[index];
+          return GestureDetector(
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BookingScreen(
+                  namaWisata: item.title,
+                  lokasi: item.location,
+                  imageUrl: item.imageUrl,
+                  hargaPerTiket:
+                      int.tryParse(
+                        item.price.replaceAll(RegExp(r'[^0-9]'), ''),
+                      ) ??
+                      25000,
+                  rating: item.rating,
+                  jumlahUlasan: item.reviewCount,
+                ),
+              ),
+            ),
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  // Gambar
+                  ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(16),
+                      bottomLeft: Radius.circular(16),
+                    ),
+                    child: Image.network(
+                      item.imageUrl,
+                      width: 110,
+                      height: 110,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) =>
+                          Container(width: 110, height: 110, color: kInputBg),
+                    ),
+                  ),
+                  // Info
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                                size: 13,
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${item.rating}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: kHintColor,
+                                ),
+                              ),
+                              const Spacer(),
+                              _WishlistButton(
+                                itemId: item.title,
+                                itemName: item.title,
+                                imageUrl: item.imageUrl,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.title,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: kTextColor,
+                            ),
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(
+                                Icons.location_on,
+                                size: 12,
+                                color: kHintColor,
+                              ),
+                              const SizedBox(width: 3),
+                              Expanded(
+                                child: Text(
+                                  item.location,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: kHintColor,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            item.price,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: kPrimaryGreen,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────
+// WISHLIST BUTTON WIDGET
+// ─────────────────────────────────────────────
+
+class _WishlistButton extends StatelessWidget {
+  final String itemId;
+  final String itemName;
+  final String imageUrl;
+  final double size;
+
+  const _WishlistButton({
+    required this.itemId,
+    required this.itemName,
+    required this.imageUrl,
+    this.size = 18,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<List<WishlistItem>>(
+      valueListenable: wishlistStore,
+      builder: (_, list, __) {
+        final isLiked = wishlistStore.isWishlisted(itemId);
+        return GestureDetector(
+          onTap: () {
+            wishlistStore.toggle(
+              WishlistItem(id: itemId, name: itemName, imageUrl: imageUrl),
+            );
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  isLiked
+                      ? '$itemName dihapus dari wishlist'
+                      : '$itemName ditambahkan ke wishlist',
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                ),
+                backgroundColor: isLiked ? kHintColor : kPrimaryGreen,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                margin: const EdgeInsets.all(16),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          },
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 200),
+            child: Icon(
+              isLiked ? Icons.favorite : Icons.favorite_border,
+              key: ValueKey(isLiked),
+              color: isLiked ? Colors.red : kHintColor,
+              size: size,
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 
