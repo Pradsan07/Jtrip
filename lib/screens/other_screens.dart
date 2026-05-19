@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'edit_profil_screen.dart';
+import 'order_store.dart';
 
 const kPrimaryGreen = Color(0xFF2D6A4F);
 const kBgGray = Color(0xFFF5F5F5);
@@ -269,77 +270,113 @@ class _KulinerCard extends StatelessWidget {
 class PesananScreen extends StatelessWidget {
   const PesananScreen({super.key});
 
-  final List<Map<String, dynamic>> _orders = const [
-    {
-      'name': 'Pantai Papuma',
-      'status': 'Selesai',
-      'date': '15 April 2026',
-      'price': 'Rp 50.000',
-      'statusColor': Color(0xFF2D6A4F),
-      'statusBg': Color(0xFFE8F5F0),
-    },
-    {
-      'name': 'Puncak Rembangan',
-      'status': 'Terjadwal',
-      'date': '15 Mei 2026',
-      'price': 'Rp 50.000',
-      'statusColor': Color(0xFFE08C00),
-      'statusBg': Color(0xFFFFF8E1),
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: kBgGray,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: const Text(
-          'Jelajahi Jember',
-          style: TextStyle(
-            color: kPrimaryGreen,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Riwayat Pesanan',
+    // ValueListenableBuilder agar otomatis rebuild saat orderStore berubah
+    return ValueListenableBuilder<List<OrderModel>>(
+      valueListenable: orderStore,
+      builder: (context, orders, _) {
+        return Scaffold(
+          backgroundColor: kBgGray,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            title: const Text(
+              'Jelajahi Jember',
               style: TextStyle(
-                fontSize: 22,
+                color: kPrimaryGreen,
                 fontWeight: FontWeight.w700,
-                color: kTextColor,
+                fontSize: 18,
               ),
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Kenangan Perjalanan dan kuliner anda di Jember',
-              style: TextStyle(fontSize: 13, color: kHintColor),
-            ),
-            const SizedBox(height: 20),
+            centerTitle: true,
+          ),
+          body: orders.isEmpty
+              ? _buildEmptyState()
+              : SingleChildScrollView(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Riwayat Pesanan',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: kTextColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        'Kenangan Perjalanan dan kuliner anda di Jember',
+                        style: TextStyle(fontSize: 13, color: kHintColor),
+                      ),
+                      const SizedBox(height: 20),
+                      // Tampilkan terbaru di atas
+                      ...orders.reversed
+                          .map((order) => _OrderCard(order: order))
+                          .toList(),
+                    ],
+                  ),
+                ),
+        );
+      },
+    );
+  }
 
-            ..._orders.map((order) => _OrderCard(order: order)).toList(),
-          ],
-        ),
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 100,
+            height: 100,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F5F0),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.confirmation_number_outlined,
+              color: kPrimaryGreen,
+              size: 48,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Belum ada pesanan',
+            style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: kTextColor,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Pesanan tiket wisatamu akan\nmuncul di sini setelah checkout',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: kHintColor, height: 1.5),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _OrderCard extends StatelessWidget {
-  final Map<String, dynamic> order;
+  final OrderModel order;
 
   const _OrderCard({required this.order});
 
   @override
   Widget build(BuildContext context) {
+    // Warna status
+    final isSelesai = order.status == 'Selesai';
+    final statusColor = isSelesai ? kPrimaryGreen : const Color(0xFFE08C00);
+    final statusBg = isSelesai
+        ? const Color(0xFFE8F5F0)
+        : const Color(0xFFFFF8E1);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
@@ -358,23 +395,33 @@ class _OrderCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F5F0),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.confirmation_number_outlined,
-                  color: kPrimaryGreen,
-                  size: 22,
+              // Thumbnail wisata
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.network(
+                  order.imageUrl,
+                  width: 44,
+                  height: 44,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F5F0),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.confirmation_number_outlined,
+                      color: kPrimaryGreen,
+                      size: 22,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  order['name'],
+                  order.namaWisata,
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -388,15 +435,15 @@ class _OrderCard extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: order['statusBg'],
+                  color: statusBg,
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Text(
-                  order['status'],
+                  order.status,
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
-                    color: order['statusColor'],
+                    color: statusColor,
                   ),
                 ),
               ),
@@ -417,7 +464,7 @@ class _OrderCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      order['date'],
+                      order.formattedTanggalKunjungan,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
@@ -436,7 +483,7 @@ class _OrderCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    order['price'],
+                    order.formattedTotal,
                     style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -444,6 +491,24 @@ class _OrderCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // ID Transaksi
+          Row(
+            children: [
+              const Text(
+                'ID Transaksi: ',
+                style: TextStyle(fontSize: 11, color: kHintColor),
+              ),
+              Text(
+                '#${order.id}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: kHintColor,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
