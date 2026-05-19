@@ -139,4 +139,38 @@ class ApiService {
 
     throw Exception(message);
   }
+  static Future<Map<String, dynamic>> updateProfile({
+  required String name,
+  required String email,
+  required String noTelp,
+  required String kewarganegaraan,
+  required String jenisIdentitas,
+  required String nomorIdentitas,
+  required String jenisKelamin,
+  required String tanggalLahir,
+}) async {
+  final token = await SessionService.getToken();
+
+  final response = await http.put(
+    Uri.parse('$baseUrl/auth/profile'),
+    headers: {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+      if (token != null) 'Authorization': 'Bearer $token',
+    },
+    body: jsonEncode({
+      'name': name,
+      'email': email,
+      'no_telp': noTelp,
+      'kewarganegaraan': kewarganegaraan,
+      'jenis_identitas': jenisIdentitas,
+      'nomor_identitas': nomorIdentitas,
+      'jenis_kelamin': jenisKelamin,
+      'tanggal_lahir': tanggalLahir,
+    }),
+  );
+
+  return _handleResponse(response);
+}
 }
