@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:jtrip/services/api_service.dart';
+import 'otp_verification_screen.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'admin_home_screen.dart';
 
 // ─────────────────────────────────────────────
 // WARNA & KONSTANTA
@@ -190,10 +193,12 @@ class PrimaryButton extends StatelessWidget {
 
 class GoogleButton extends StatelessWidget {
   final String label;
+  final VoidCallback? onTap;
 
   const GoogleButton({
     super.key,
     required this.label,
+    this.onTap,
   });
 
   @override
@@ -202,7 +207,7 @@ class GoogleButton extends StatelessWidget {
       width: double.infinity,
       height: 52,
       child: OutlinedButton.icon(
-        onPressed: () {},
+        onPressed: onTap,
         icon: Image.network(
           'https://www.svgrepo.com/show/475656/google-color.svg',
           height: 20,
@@ -244,6 +249,7 @@ class LoginScreen extends StatefulWidget {
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
+  
 }
 
 class _LoginScreenState extends State<LoginScreen> {
@@ -260,38 +266,135 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _onLogin() async {
-    if (_emailCtrl.text.trim().isEmpty || _passwordCtrl.text.trim().isEmpty) {
-      _showMessage('Email dan password wajib diisi', isError: true);
+Future<void> _onGoogleLogin() async {
+  if (_isLoading) return;
+
+  setState(() => _isLoading = true);
+
+  try {
+    final googleSignIn = GoogleSignIn(
+      scopes: ['email', 'profile'],
+      serverClientId: '228442078414-7ibnerktgj810j5pkdi13hgupfgkdlhs.apps.googleusercontent.com',
+    );
+
+    await googleSignIn.signOut();
+
+    final googleAccount = await googleSignIn.signIn();
+
+    if (googleAccount == null) {
+      _showMessage('Login Google dibatalkan.', isError: true);
       return;
     }
 
-    setState(() => _isLoading = true);
+    final googleAuth = await googleAccount.authentication;
+    final idToken = googleAuth.idToken;
 
-    try {
-      await ApiService.login(
-        email: _emailCtrl.text.trim(),
-        password: _passwordCtrl.text,
-      );
+    if (idToken == null || idToken.isEmpty) {
+      _showMessage('ID Token Google tidak ditemukan.', isError: true);
+      return;
+    }
 
-      if (!mounted) return;
+    final result = await ApiService.loginWithGoogle(idToken: idToken);
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/home',
-        (route) => false,
-      );
-    } catch (e) {
-      _showMessage(
-        e.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    await _redirectByRole(loginResult: result);
+  } on ApiException catch (e) {
+    _showMessage(e.message, isError: true);
+  } catch (e) {
+    _showMessage(
+      e.toString().replaceFirst('Exception: ', ''),
+      isError: true,
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
+
+Future<void> _redirectByRole({Map<String, dynamic>? loginResult}) async {
+  String role = 'user';
+
+  final dynamic loginUser =
+      loginResult?['data']?['user'] ?? loginResult?['user'];
+
+  if (loginUser is Map && loginUser['role'] != null) {
+    role = loginUser['role'].toString();
+  } else {
+    final meResult = await ApiService.me();
+    final dynamic meData = meResult['data'] ?? meResult['user'];
+
+    if (meData is Map && meData['role'] != null) {
+      role = meData['role'].toString();
+    }
+  }
+
+  if (!mounted) return;
+
+  if (role == 'admin') {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AdminHomeScreen(),
+      ),
+      (route) => false,
+    );
+  } else {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/home',
+      (route) => false,
+    );
+  }
+}
+
+  Future<void> _onLogin() async {
+  if (_emailCtrl.text.trim().isEmpty || _passwordCtrl.text.trim().isEmpty) {
+    _showMessage('Email dan password wajib diisi', isError: true);
+    return;
+  }
+
+  setState(() => _isLoading = true);
+
+  try {
+    final result = await ApiService.login(
+  email: _emailCtrl.text.trim(),
+  password: _passwordCtrl.text,
+);
+
+await _redirectByRole(loginResult: result);
+  } on ApiException catch (e) {
+    final needsVerification = e.data?['needs_verification'] == true;
+    final email = e.data?['email']?.toString();
+
+    if (e.statusCode == 403 && needsVerification && email != null) {
+      if (!mounted) return;
+
+      _showMessage('Akun belum aktif. Silakan verifikasi OTP.');
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OtpVerificationScreen(
+            email: email,
+          ),
+        ),
+      );
+
+      return;
+    }
+
+    _showMessage(e.message, isError: true);
+  } catch (e) {
+    _showMessage(
+      e.toString().replaceFirst('Exception: ', ''),
+      isError: true,
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
 
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -402,7 +505,10 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const GoogleButton(label: 'Masuk dengan Google'),
+                      GoogleButton(
+                      label: 'Masuk dengan Google',
+                      onTap: _isLoading ? null : _onGoogleLogin,
+                    ),
                     ],
                   ),
                 ),
@@ -481,6 +587,87 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+Future<void> _redirectByRole({Map<String, dynamic>? loginResult}) async {
+  String role = 'user';
+
+  final dynamic loginUser =
+      loginResult?['data']?['user'] ?? loginResult?['user'];
+
+  if (loginUser is Map && loginUser['role'] != null) {
+    role = loginUser['role'].toString();
+  } else {
+    final meResult = await ApiService.me();
+    final dynamic meData = meResult['data'] ?? meResult['user'];
+
+    if (meData is Map && meData['role'] != null) {
+      role = meData['role'].toString();
+    }
+  }
+
+  if (!mounted) return;
+
+  if (role == 'admin') {
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AdminHomeScreen(),
+      ),
+      (route) => false,
+    );
+  } else {
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/home',
+      (route) => false,
+    );
+  }
+}
+
+Future<void> _onGoogleRegister() async {
+  if (_isLoading) return;
+
+  setState(() => _isLoading = true);
+
+  try {
+    final googleSignIn = GoogleSignIn(
+      scopes: ['email', 'profile'],
+      serverClientId: '228442078414-7ibnerktgj810j5pkdi13hgupfgkdlhs.apps.googleusercontent.com',
+    );
+
+    await googleSignIn.signOut();
+
+    final googleAccount = await googleSignIn.signIn();
+
+    if (googleAccount == null) {
+      _showMessage('Daftar Google dibatalkan.', isError: true);
+      return;
+    }
+
+    final googleAuth = await googleAccount.authentication;
+    final idToken = googleAuth.idToken;
+
+    if (idToken == null || idToken.isEmpty) {
+      _showMessage('ID Token Google tidak ditemukan.', isError: true);
+      return;
+    }
+
+    final result = await ApiService.loginWithGoogle(idToken: idToken);
+
+    await _redirectByRole(loginResult: result);
+  } on ApiException catch (e) {
+    _showMessage(e.message, isError: true);
+  } catch (e) {
+    _showMessage(
+      e.toString().replaceFirst('Exception: ', ''),
+      isError: true,
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+}
+
   Future<void> _pilihTanggalLahir() async {
     final DateTime now = DateTime.now();
 
@@ -503,58 +690,72 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Future<void> _onRegister() async {
-    if (_nameCtrl.text.trim().isEmpty ||
-        _emailCtrl.text.trim().isEmpty ||
-        _phoneCtrl.text.trim().isEmpty ||
-        _nomorIdentitasCtrl.text.trim().isEmpty ||
-        _tanggalLahirCtrl.text.trim().isEmpty ||
-        _passwordCtrl.text.isEmpty ||
-        _confirmPasswordCtrl.text.isEmpty) {
-      _showMessage('Semua field wajib diisi', isError: true);
-      return;
-    }
+  if (_nameCtrl.text.trim().isEmpty ||
+      _emailCtrl.text.trim().isEmpty ||
+      _phoneCtrl.text.trim().isEmpty ||
+      _nomorIdentitasCtrl.text.trim().isEmpty ||
+      _tanggalLahirCtrl.text.trim().isEmpty ||
+      _passwordCtrl.text.isEmpty ||
+      _confirmPasswordCtrl.text.isEmpty) {
+    _showMessage('Semua field wajib diisi', isError: true);
+    return;
+  }
 
-    if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
-      _showMessage('Konfirmasi password tidak sama', isError: true);
-      return;
-    }
+  if (_passwordCtrl.text.length < 8) {
+    _showMessage('Password minimal 8 karakter', isError: true);
+    return;
+  }
 
-    setState(() => _isLoading = true);
+  if (_passwordCtrl.text != _confirmPasswordCtrl.text) {
+    _showMessage('Konfirmasi password tidak sama', isError: true);
+    return;
+  }
 
-    try {
-      await ApiService.register(
-        name: _nameCtrl.text.trim(),
-        email: _emailCtrl.text.trim(),
-        noTelp: _phoneCtrl.text.trim(),
-        password: _passwordCtrl.text,
-        passwordConfirmation: _confirmPasswordCtrl.text,
-        kewarganegaraan: _kewarganegaraan,
-        jenisIdentitas: _jenisIdentitas,
-        nomorIdentitas: _nomorIdentitasCtrl.text.trim(),
-        jenisKelamin: _jenisKelamin,
-        tanggalLahir: _tanggalLahirCtrl.text.trim(),
-      );
+  setState(() => _isLoading = true);
 
-      if (!mounted) return;
+  try {
+    final result = await ApiService.register(
+      name: _nameCtrl.text.trim(),
+      email: _emailCtrl.text.trim(),
+      noTelp: _phoneCtrl.text.trim(),
+      password: _passwordCtrl.text,
+      passwordConfirmation: _confirmPasswordCtrl.text,
+      kewarganegaraan: _kewarganegaraan,
+      jenisIdentitas: _jenisIdentitas,
+      nomorIdentitas: _nomorIdentitasCtrl.text.trim(),
+      jenisKelamin: _jenisKelamin,
+      tanggalLahir: _tanggalLahirCtrl.text.trim(),
+    );
 
-      _showMessage('Register berhasil');
+    final data = result['data'] is Map ? result['data'] as Map : {};
+    final email = data['email']?.toString() ?? _emailCtrl.text.trim();
 
-      Navigator.pushNamedAndRemoveUntil(
-        context,
-        '/home',
-        (route) => false,
-      );
-    } catch (e) {
-      _showMessage(
-        e.toString().replaceFirst('Exception: ', ''),
-        isError: true,
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+    if (!mounted) return;
+
+    _showMessage(
+      result['message']?.toString() ??
+          'Register berhasil. Silakan verifikasi OTP.',
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => OtpVerificationScreen(
+          email: email,
+        ),
+      ),
+    );
+  } catch (e) {
+    _showMessage(
+      e.toString().replaceFirst('Exception: ', ''),
+      isError: true,
+    );
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -819,7 +1020,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         ),
                       ),
                       const SizedBox(height: 12),
-                      const GoogleButton(label: 'Daftar dengan Google'),
+                      GoogleButton(
+                        label: 'Daftar dengan Google',
+                        onTap: _isLoading ? null : _onGoogleRegister,
+                      ),  
                     ],
                   ),
                 ),

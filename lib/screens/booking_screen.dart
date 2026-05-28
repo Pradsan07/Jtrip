@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'order_store.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:jtrip/services/api_service.dart';
 
 const kPrimaryGreen = Color(0xFF2D6A4F);
 const kBgGray = Color(0xFFF5F5F5);
@@ -7,84 +10,26 @@ const kInputBg = Color(0xFFEAEAEA);
 const kHintColor = Color(0xFFAAAAAA);
 const kTextColor = Color(0xFF1A1A1A);
 
-// ─────────────────────────────────────────────
-// HELPER — FORMAT TANGGAL & HARI
-// ─────────────────────────────────────────────
-
-const List<String> _namaHari = [
-  'MIN',
-  'SEN',
-  'SEL',
-  'RAB',
-  'KAM',
-  'JUM',
-  'SAB',
-];
-
-const List<String> _namaBulan = [
-  '',
-  'Januari',
-  'Februari',
-  'Maret',
-  'April',
-  'Mei',
-  'Juni',
-  'Juli',
-  'Agustus',
-  'September',
-  'Oktober',
-  'November',
-  'Desember',
-];
-
-const List<String> _namaHariPanjang = [
-  'Minggu',
-  'Senin',
-  'Selasa',
-  'Rabu',
-  'Kamis',
-  'Jumat',
-  'Sabtu',
-];
-
-String formatTanggalLengkap(DateTime date) {
-  // Contoh: "Rabu, 15 Mei 2026"
-  return '${_namaHariPanjang[date.weekday % 7]}, ${date.day} ${_namaBulan[date.month]} ${date.year}';
-}
-
-String formatBulanTahun(DateTime date) {
-  // Contoh: "Mei 2026"
-  return '${_namaBulan[date.month]} ${date.year}';
-}
-
-// Generate 5 hari mulai hari ini
-List<DateTime> generateDays() {
-  final today = DateTime.now();
-  return List.generate(5, (i) => today.add(Duration(days: i)));
-}
-
-// ─────────────────────────────────────────────
-// BOOKING SCREEN — Pilih Waktu
-// ─────────────────────────────────────────────
-
 class BookingScreen extends StatefulWidget {
   final String namaWisata;
   final String lokasi;
+  final String kategori;
+  final int harga;
   final String imageUrl;
-  final int hargaPerTiket;
-  final double rating;
-  final int jumlahUlasan;
+  final double? latitude;
+  final double? longitude;
+  final String idWisata;
 
   const BookingScreen({
     super.key,
-    this.namaWisata = 'Pantai Papuma',
-    this.lokasi =
-        'Desa Lojejer, Kecamatan Wuluhan, Kabupaten Jember, Jawa Timur',
-    this.imageUrl =
-        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
-    this.hargaPerTiket = 25000,
-    this.rating = 4.8,
-    this.jumlahUlasan = 2400,
+    required this.namaWisata,
+    required this.idWisata,
+    required this.lokasi,
+    required this.kategori,
+    required this.harga,
+    required this.imageUrl,
+    this.latitude,
+    this.longitude,
   });
 
   @override
@@ -92,451 +37,10 @@ class BookingScreen extends StatefulWidget {
 }
 
 class _BookingScreenState extends State<BookingScreen> {
-  int _selectedDayIndex = 0;
-  int _ticketCount = 0;
+  int _ticketCount = 1;
+  DateTime _selectedDate = DateTime.now();
 
-  final List<DateTime> _days = generateDays();
-
-  DateTime get _selectedDate => _days[_selectedDayIndex];
-  int get _totalPrice => _ticketCount * widget.hargaPerTiket;
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kTextColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Pilih Waktu',
-          style: TextStyle(
-            color: kPrimaryGreen,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // ── Destination card — data dari wisata yang diklik ──
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFEEEEEE)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.network(
-                            widget.imageUrl,
-                            width: 70,
-                            height: 70,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 70,
-                              height: 70,
-                              color: kInputBg,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'WISATA ALAM',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  color: kHintColor,
-                                  fontWeight: FontWeight.w600,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                widget.namaWisata,
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: kTextColor,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.star,
-                                    color: Colors.amber,
-                                    size: 14,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    '${widget.rating} (${_formatUlasan(widget.jumlahUlasan)} ulasan)',
-                                    style: const TextStyle(
-                                      fontSize: 12,
-                                      color: kHintColor,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 28),
-
-                  // ── Pilih Tanggal ──
-                  const Text(
-                    'Pilih Tanggal',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: kTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Sesuaikan dengan jadwal perjalananmu',
-                    style: TextStyle(fontSize: 12, color: kHintColor),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // Bulan & Tahun — update otomatis sesuai hari dipilih
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: Text(
-                      formatBulanTahun(_selectedDate),
-                      style: const TextStyle(
-                        color: kPrimaryGreen,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  // ── Day selector — generated dari DateTime.now() ──
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: List.generate(_days.length, (index) {
-                      final day = _days[index];
-                      final isSelected = _selectedDayIndex == index;
-                      final isToday = index == 0;
-
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedDayIndex = index),
-                        child: Container(
-                          width: 58,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected ? kPrimaryGreen : Colors.white,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isSelected
-                                  ? kPrimaryGreen
-                                  : const Color(0xFFEEEEEE),
-                            ),
-                          ),
-                          child: Column(
-                            children: [
-                              Text(
-                                isToday
-                                    ? 'HARI\nINI'
-                                    : _namaHari[day.weekday % 7],
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
-                                  color: isSelected
-                                      ? Colors.white70
-                                      : kHintColor,
-                                  height: 1.2,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                '${day.day}',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700,
-                                  color: isSelected ? Colors.white : kTextColor,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              if (isSelected)
-                                Container(
-                                  width: 5,
-                                  height: 5,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ── Jam Buka ──
-                  const _InfoRow(title: 'Jam Buka', value: '24 Jam'),
-                  const Divider(height: 1),
-
-                  // ── Jumlah Tiket ──
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Row(
-                      children: [
-                        const Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Jumlah Tiket',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: kTextColor,
-                                ),
-                              ),
-                              SizedBox(height: 4),
-                              Text(
-                                'Maksimal 5 per transaksi',
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: kHintColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          children: [
-                            GestureDetector(
-                              onTap: () {
-                                if (_ticketCount > 1) {
-                                  setState(() => _ticketCount--);
-                                }
-                              },
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: BoxDecoration(
-                                  border: Border.all(color: kInputBg),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.remove,
-                                  size: 16,
-                                  color: kTextColor,
-                                ),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                              ),
-                              child: Text(
-                                '$_ticketCount',
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: kTextColor,
-                                ),
-                              ),
-                            ),
-                            GestureDetector(
-                              onTap: () {
-                                if (_ticketCount < 5) {
-                                  setState(() => _ticketCount++);
-                                }
-                              },
-                              child: Container(
-                                width: 30,
-                                height: 30,
-                                decoration: const BoxDecoration(
-                                  color: kPrimaryGreen,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.add,
-                                  size: 16,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  const Divider(height: 1),
-
-                  // ── Lokasi ──
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Lokasi',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: kTextColor,
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(
-                              Icons.location_on_outlined,
-                              size: 16,
-                              color: kPrimaryGreen,
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: Text(
-                                widget.lokasi,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  color: kHintColor,
-                                  height: 1.4,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // ── Bottom bar ──
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
-                  blurRadius: 10,
-                  offset: const Offset(0, -2),
-                ),
-              ],
-            ),
-            child: Row(
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Text(
-                      'Estimasi Biaya',
-                      style: TextStyle(fontSize: 12, color: kHintColor),
-                    ),
-                    Text(
-                      'Rp ${_formatPrice(_totalPrice)}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w700,
-                        color: kTextColor,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: _ticketCount == 0
-                          ? null
-                          : () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => CheckoutScreen(
-                                    ticketCount: _ticketCount,
-                                    selectedDate: _selectedDate,
-                                    namaWisata: widget.namaWisata,
-                                    imageUrl: widget.imageUrl,
-                                    hargaPerTiket: widget.hargaPerTiket,
-                                  ),
-                                ),
-                              );
-                            },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: kPrimaryGreen,
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: kInputBg,
-                        disabledForegroundColor: kHintColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(50),
-                        ),
-                        elevation: 0,
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            'Lanjutkan',
-                            style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Icon(Icons.arrow_forward, size: 18),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatUlasan(int count) {
-    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
-    return count.toString();
-  }
+  int get _totalPrice => _ticketCount * widget.harga;
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
@@ -544,77 +48,141 @@ class _BookingScreenState extends State<BookingScreen> {
       (m) => '${m[1]}.',
     );
   }
-}
 
-class _InfoRow extends StatelessWidget {
-  final String title;
-  final String value;
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
 
-  const _InfoRow({required this.title, required this.value});
+    return '$day/$month/$year';
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildMapPreview() {
+    if (widget.latitude == null || widget.longitude == null) {
+      return const SizedBox.shrink();
+    }
+
+    final point = LatLng(widget.latitude!, widget.longitude!);
+
+    return Container(
+      height: 180,
+      margin: const EdgeInsets.only(top: 14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: const Color(0xFFE0E0E0),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: FlutterMap(
+        options: MapOptions(
+          initialCenter: point,
+          initialZoom: 14,
+        ),
         children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: kTextColor,
-            ),
+          TileLayer(
+            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+            userAgentPackageName: 'com.example.jtrip',
           ),
-          Text(value, style: const TextStyle(fontSize: 14, color: kHintColor)),
+          MarkerLayer(
+            markers: [
+              Marker(
+                point: point,
+                width: 44,
+                height: 44,
+                child: const Icon(
+                  Icons.location_on,
+                  color: Colors.red,
+                  size: 40,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
-}
 
-// ─────────────────────────────────────────────
-// CHECKOUT SCREEN
-// ─────────────────────────────────────────────
+  Future<void> _openRoute() async {
+    if (widget.latitude == null || widget.longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Koordinat wisata belum tersedia.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
-class CheckoutScreen extends StatefulWidget {
-  final int ticketCount;
-  final DateTime selectedDate;
-  final String namaWisata;
-  final String imageUrl;
-  final int hargaPerTiket;
+    final uri = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=${widget.latitude},${widget.longitude}&travelmode=driving',
+    );
 
-  const CheckoutScreen({
-    super.key,
-    required this.ticketCount,
-    required this.selectedDate,
-    this.namaWisata = 'Pantai Papuma',
-    this.imageUrl =
-        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
-    this.hargaPerTiket = 25000,
-  });
+    final success = await launchUrl(
+      uri,
+      mode: LaunchMode.externalApplication,
+    );
 
-  @override
-  State<CheckoutScreen> createState() => _CheckoutScreenState();
-}
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Tidak bisa membuka Google Maps.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
-class _CheckoutScreenState extends State<CheckoutScreen> {
-  int _selectedPayment = 0;
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
 
-  final List<Map<String, String>> _paymentMethods = [
-    {'label': 'QRIS', 'name': 'QRIS / E-Wallet'},
-    {'label': 'BCA', 'name': 'BCA Virtual Account'},
-    {'label': 'MANDIRI', 'name': 'Mandiri Bill Payment'},
-    {'label': '💳', 'name': 'Kartu Kredit/Debit'},
-  ];
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate.isBefore(now) ? now : _selectedDate,
+      firstDate: now,
+      lastDate: DateTime(now.year + 1),
+      helpText: 'Pilih Tanggal Kunjungan',
+      confirmText: 'Pilih',
+      cancelText: 'Batal',
+    );
 
-  int get _subtotal => widget.ticketCount * widget.hargaPerTiket;
-  int get _serviceFee => 2500;
-  int get _total => _subtotal + _serviceFee;
+    if (picked != null) {
+      setState(() {
+        _selectedDate = picked;
+      });
+    }
+  }
 
-  // Format jam sesuai jam buka wisata
-  String get _jamKunjungan => '08.00 - 10.00 WIB';
+  void _goToCheckout() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CheckoutScreen(
+          idWisata: widget.idWisata,
+          namaWisata: widget.namaWisata,
+          lokasi: widget.lokasi,
+          kategori: widget.kategori,
+          harga: widget.harga,
+          imageUrl: widget.imageUrl,
+          ticketCount: _ticketCount,
+          selectedDate: _selectedDate,
+        ),
+      ),
+    );
+  }
+
+  Widget _imageFallback({double height = 220}) {
+    return Container(
+      height: height,
+      width: double.infinity,
+      color: kInputBg,
+      child: const Icon(
+        Icons.image,
+        size: 42,
+        color: kHintColor,
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -624,304 +192,401 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
         backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kTextColor),
+          icon: const Icon(
+            Icons.arrow_back,
+            color: kTextColor,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Checkout Tiket',
+          'Pesan Tiket',
           style: TextStyle(
             color: kPrimaryGreen,
-            fontWeight: FontWeight.w700,
             fontSize: 18,
+            fontWeight: FontWeight.w700,
           ),
         ),
         centerTitle: true,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 12),
-            child: CircleAvatar(
-              radius: 18,
-              backgroundImage: const NetworkImage(
-                'https://i.pravatar.cc/100?img=47',
-              ),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ── Detail Pesanan ──
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Detail Pesanan',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: kTextColor,
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: () => Navigator.pop(context),
-                        child: const Text(
-                          'Ubah',
-                          style: TextStyle(
-                            color: kPrimaryGreen,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: widget.imageUrl.isEmpty
+                        ? _imageFallback()
+                        : Image.network(
+                            widget.imageUrl,
+                            height: 220,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _imageFallback(),
                           ),
-                        ),
-                      ),
-                    ],
                   ),
-                  const SizedBox(height: 14),
+
+                  const SizedBox(height: 18),
 
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            widget.imageUrl,
-                            height: 140,
-                            width: double.infinity,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) =>
-                                Container(height: 140, color: kInputBg),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE8F5F0),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            widget.kategori.toUpperCase(),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: kPrimaryGreen,
+                            ),
                           ),
                         ),
-                        const SizedBox(height: 14),
+
+                        const SizedBox(height: 10),
+
                         Text(
                           widget.namaWisata,
                           style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800,
                             color: kTextColor,
                           ),
                         ),
-                        const SizedBox(height: 10),
 
-                        // Tanggal — dari DateTime yang dipilih user
-                        _DetailRow(
-                          icon: Icons.calendar_month_outlined,
-                          text: formatTanggalLengkap(widget.selectedDate),
+                        const SizedBox(height: 14),
+
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(
+                              Icons.location_on_outlined,
+                              size: 17,
+                              color: kPrimaryGreen,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                widget.lokasi,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: kHintColor,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 8),
 
-                        // Jam kunjungan
-                        _DetailRow(
-                          icon: Icons.access_time,
-                          text: _jamKunjungan,
+                        _buildMapPreview(),
+
+                        const SizedBox(height: 12),
+
+                        SizedBox(
+                          width: double.infinity,
+                          height: 44,
+                          child: OutlinedButton.icon(
+                            onPressed: _openRoute,
+                            icon: const Icon(
+                              Icons.map_outlined,
+                              size: 18,
+                            ),
+                            label: const Text(
+                              'Lihat Rute di Google Maps',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: kPrimaryGreen,
+                              side: const BorderSide(color: kPrimaryGreen),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(50),
+                              ),
+                            ),
+                          ),
                         ),
-                        const SizedBox(height: 8),
 
-                        // Jumlah tiket
-                        _DetailRow(
-                          icon: Icons.confirmation_number_outlined,
-                          text: '${widget.ticketCount} Tiket Dewasa',
+                        const SizedBox(height: 16),
+
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'HTM / Orang',
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: kHintColor,
+                              ),
+                            ),
+                            Text(
+                              widget.harga == 0
+                                  ? 'Gratis'
+                                  : 'Rp ${_formatPrice(widget.harga)}',
+                              style: const TextStyle(
+                                fontSize: 17,
+                                fontWeight: FontWeight.w800,
+                                color: kPrimaryGreen,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
 
-                  // ── Metode Pembayaran ──
-                  const Text(
-                    'Metode Pembayaran',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: kTextColor,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 18),
 
-                  ...List.generate(_paymentMethods.length, (index) {
-                    final isSelected = _selectedPayment == index;
-                    return GestureDetector(
-                      onTap: () => setState(() => _selectedPayment = index),
-                      child: Container(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 14,
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected
-                                ? kPrimaryGreen
-                                : const Color(0xFFEEEEEE),
-                            width: isSelected ? 1.5 : 1,
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Tanggal Kunjungan',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                            color: kTextColor,
                           ),
                         ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 46,
-                              height: 30,
-                              decoration: BoxDecoration(
-                                color: kBgGray,
-                                borderRadius: BorderRadius.circular(6),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: _pickDate,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 14,
+                            ),
+                            decoration: BoxDecoration(
+                              color: kBgGray,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: const Color(0xFFE0E0E0),
                               ),
-                              child: Center(
-                                child: Text(
-                                  _paymentMethods[index]['label']!,
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(
+                                  Icons.calendar_month_outlined,
+                                  color: kPrimaryGreen,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 10),
+                                Text(
+                                  _formatDate(_selectedDate),
                                   style: const TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
                                     color: kTextColor,
                                   ),
                                 ),
-                              ),
+                                const Spacer(),
+                                const Icon(
+                                  Icons.keyboard_arrow_down,
+                                  color: kHintColor,
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                _paymentMethods[index]['name']!,
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        const Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Jumlah Tiket',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w700,
                                   color: kTextColor,
                                 ),
                               ),
-                            ),
-                            Icon(
-                              isSelected
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_unchecked,
-                              color: isSelected ? kPrimaryGreen : kHintColor,
-                              size: 22,
-                            ),
-                          ],
+                              SizedBox(height: 4),
+                              Text(
+                                'Pilih jumlah pengunjung',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: kHintColor,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 16),
+                        _QtyButton(
+                          icon: Icons.remove,
+                          onTap: () {
+                            if (_ticketCount > 1) {
+                              setState(() {
+                                _ticketCount--;
+                              });
+                            }
+                          },
+                        ),
+                        Container(
+                          width: 42,
+                          alignment: Alignment.center,
+                          child: Text(
+                            '$_ticketCount',
+                            style: const TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              color: kTextColor,
+                            ),
+                          ),
+                        ),
+                        _QtyButton(
+                          icon: Icons.add,
+                          onTap: () {
+                            if (_ticketCount < 10) {
+                              setState(() {
+                                _ticketCount++;
+                              });
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Maksimal pemesanan 10 tiket.'),
+                                  backgroundColor: Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
 
-                  // ── Ringkasan Biaya ──
+                  const SizedBox(height: 18),
+
                   Container(
+                    width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFF5F0E8),
-                      borderRadius: BorderRadius.circular(12),
+                      color: const Color(0xFFE8F5F0),
+                      borderRadius: BorderRadius.circular(18),
                     ),
                     child: Column(
                       children: [
                         _SummaryRow(
-                          label: 'Subtotal(${widget.ticketCount} Tiket)',
-                          value: 'Rp ${_formatPrice(_subtotal)}',
-                          isTotal: false,
+                          label: 'Harga Tiket',
+                          value: widget.harga == 0
+                              ? 'Gratis'
+                              : 'Rp ${_formatPrice(widget.harga)}',
                         ),
                         const SizedBox(height: 8),
                         _SummaryRow(
-                          label: 'Bayar Layanan',
-                          value: 'Rp ${_formatPrice(_serviceFee)}',
-                          isTotal: false,
+                          label: 'Jumlah',
+                          value: '$_ticketCount tiket',
                         ),
-                        const Divider(height: 20),
+                        const Divider(height: 24),
                         _SummaryRow(
-                          label: 'Total Bayar',
-                          value: 'Rp${_formatPrice(_total)}',
+                          label: 'Total',
+                          value: _totalPrice == 0
+                              ? 'Gratis'
+                              : 'Rp ${_formatPrice(_totalPrice)}',
                           isTotal: true,
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
-
-                  Row(
-                    children: const [
-                      Icon(
-                        Icons.verified_user_outlined,
-                        color: kPrimaryGreen,
-                        size: 16,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Pembayaran Aman & Terenkripsi',
-                        style: TextStyle(fontSize: 12, color: kHintColor),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
                 ],
               ),
             ),
           ),
 
-          // ── Bayar Sekarang ──
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-            child: SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  // Tentukan status: Terjadwal jika tanggal >= hari ini
-                  final now = DateTime.now();
-                  final isToday =
-                      widget.selectedDate.year == now.year &&
-                      widget.selectedDate.month == now.month &&
-                      widget.selectedDate.day == now.day;
-                  final isFuture = widget.selectedDate.isAfter(now);
-                  final status = (isToday || isFuture)
-                      ? 'Terjadwal'
-                      : 'Selesai';
-
-                  final orderId = OrderStore.generateId();
-                  orderStore.addOrder(
-                    OrderModel(
-                      id: orderId,
-                      namaWisata: widget.namaWisata,
-                      imageUrl: widget.imageUrl,
-                      tanggalKunjungan: widget.selectedDate,
-                      jumlahTiket: widget.ticketCount,
-                      totalBayar: _total,
-                      status: status,
-                      tanggalPesan: DateTime.now(),
-                    ),
-                  );
-
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => DigitalTicketScreen(
-                        selectedDate: widget.selectedDate,
-                        orderId: orderId,
-                        namaWisata: widget.namaWisata,
-                        imageUrl: widget.imageUrl,
-                      ),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.wallet, size: 20),
-                label: const Text(
-                  'Bayar Sekarang',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, -2),
                 ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _goToCheckout,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
                   ),
-                  elevation: 0,
+                  child: const Text(
+                    'Lanjutkan',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -930,6 +595,39 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       ),
     );
   }
+}
+
+class CheckoutScreen extends StatefulWidget {
+  final String idWisata;
+  final String namaWisata;
+  final String lokasi;
+  final String kategori;
+  final int harga;
+  final String imageUrl;
+  final int ticketCount;
+  final DateTime selectedDate;
+
+  const CheckoutScreen({
+    super.key,
+    required this.idWisata,
+    required this.namaWisata,
+    required this.lokasi,
+    required this.kategori,
+    required this.harga,
+    required this.imageUrl,
+    required this.ticketCount,
+    required this.selectedDate,
+  });
+
+  @override
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends State<CheckoutScreen> {
+  String _selectedPayment = 'Midtrans';
+  bool _isPaying = false;
+
+  int get _subtotal => widget.ticketCount * widget.harga;
 
   String _formatPrice(int price) {
     return price.toString().replaceAllMapped(
@@ -937,22 +635,397 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       (m) => '${m[1]}.',
     );
   }
+
+  String _formatDate(DateTime date) {
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final year = date.year.toString();
+
+    return '$day/$month/$year';
+  }
+
+  String _formatDateForApi(DateTime date) {
+    final year = date.year.toString().padLeft(4, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+
+    return '$year-$month-$day';
+  }
+
+  Widget _imageFallback({double height = 90, double width = 90}) {
+    return Container(
+      height: height,
+      width: width,
+      color: kInputBg,
+      child: const Icon(
+        Icons.image,
+        size: 28,
+        color: kHintColor,
+      ),
+    );
+  }
+
+  Future<void> _payNow() async {
+  if (_isPaying) return;
+
+  setState(() {
+    _isPaying = true;
+  });
+
+  try {
+    final result = await ApiService.checkoutTiket(
+      idWisata: widget.idWisata,
+      tanggalKunjungan: _formatDateForApi(widget.selectedDate),
+      jumlahPengunjung: widget.ticketCount,
+      metodePembayaran: _selectedPayment,
+    );
+
+    final data = result['data'] is Map<String, dynamic>
+        ? result['data'] as Map<String, dynamic>
+        : result;
+
+    final snapToken = data['snap_token']?.toString() ??
+        data['snapToken']?.toString();
+
+    final kodePesanan = data['kode_pesanan']?.toString() ??
+        data['kodePesanan']?.toString();
+
+    if (snapToken == null || snapToken.isEmpty) {
+      throw Exception('Snap token tidak ditemukan dari server');
+    }
+
+    final snapUrl = Uri.parse(
+      'https://app.sandbox.midtrans.com/snap/v2/vtweb/$snapToken',
+    );
+
+    final opened = await launchUrl(
+      snapUrl,
+      mode: LaunchMode.externalApplication,
+    );
+
+    if (!opened) {
+      throw Exception('Tidak bisa membuka halaman pembayaran Midtrans');
+    }
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          kodePesanan == null
+              ? 'Pesanan berhasil dibuat. Selesaikan pembayaran di Midtrans.'
+              : 'Pesanan $kodePesanan berhasil dibuat. Selesaikan pembayaran di Midtrans.',
+        ),
+        backgroundColor: kPrimaryGreen,
+      ),
+    );
+
+    Navigator.pushNamedAndRemoveUntil(
+      context,
+      '/home',
+      (route) => false,
+    );
+  } catch (e) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.toString().replaceFirst('Exception: ', '')),
+        backgroundColor: Colors.red,
+      ),
+    );
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isPaying = false;
+      });
+    }
+  }
 }
-
-class _DetailRow extends StatelessWidget {
-  final IconData icon;
-  final String text;
-
-  const _DetailRow({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: kHintColor),
-        const SizedBox(width: 8),
-        Text(text, style: const TextStyle(fontSize: 13, color: kHintColor)),
-      ],
+    return Scaffold(
+      backgroundColor: kBgGray,
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: kTextColor,
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Checkout',
+          style: TextStyle(
+            color: kPrimaryGreen,
+            fontSize: 18,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(14),
+                          child: widget.imageUrl.isEmpty
+                              ? _imageFallback()
+                              : Image.network(
+                                  widget.imageUrl,
+                                  height: 90,
+                                  width: 90,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) =>
+                                      _imageFallback(),
+                                ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.namaWisata,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: kTextColor,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Icon(
+                                    Icons.location_on_outlined,
+                                    size: 14,
+                                    color: kHintColor,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      widget.lokasi,
+                                      style: const TextStyle(
+                                        fontSize: 12,
+                                        color: kHintColor,
+                                        height: 1.4,
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${widget.ticketCount} tiket • ${_formatDate(widget.selectedDate)}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: kPrimaryGreen,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  const Text(
+                    'Metode Pembayaran',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: kTextColor,
+                    ),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  _PaymentOption(
+                    title: 'Midtrans',
+                    subtitle:
+                        'Bayar melalui virtual account, e-wallet, QRIS, dan lainnya',
+                    icon: Icons.payment,
+                    selected: _selectedPayment == 'Midtrans',
+                    onTap: () {
+                      setState(() {
+                        _selectedPayment = 'Midtrans';
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  _PaymentOption(
+                    title: 'Bayar di Lokasi',
+                    subtitle: 'Opsi sementara untuk testing aplikasi',
+                    icon: Icons.storefront_outlined,
+                    selected: _selectedPayment == 'Bayar di Lokasi',
+                    onTap: () {
+                      setState(() {
+                        _selectedPayment = 'Bayar di Lokasi';
+                      });
+                    },
+                  ),
+
+                  const SizedBox(height: 18),
+
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.05),
+                          blurRadius: 12,
+                          offset: const Offset(0, 3),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        _SummaryRow(
+                          label: 'Harga Tiket',
+                          value: widget.harga == 0
+                              ? 'Gratis'
+                              : 'Rp ${_formatPrice(widget.harga)}',
+                        ),
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Jumlah Tiket',
+                          value: '${widget.ticketCount} tiket',
+                        ),
+                        const SizedBox(height: 8),
+                        _SummaryRow(
+                          label: 'Tanggal',
+                          value: _formatDate(widget.selectedDate),
+                        ),
+                        const Divider(height: 24),
+                        _SummaryRow(
+                          label: 'Total Pembayaran',
+                          value: _subtotal == 0
+                              ? 'Gratis'
+                              : 'Rp ${_formatPrice(_subtotal)}',
+                          isTotal: true,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+
+          Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.08),
+                  blurRadius: 12,
+                  offset: const Offset(0, -2),
+                ),
+              ],
+            ),
+            child: SafeArea(
+              top: false,
+              child: SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: ElevatedButton(
+                  onPressed: _payNow,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kPrimaryGreen,
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(50),
+                    ),
+                  ),
+                  child: _isPaying
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2.5,
+                    ),
+                  )
+                : const Text(
+                    'Bayar Sekarang',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QtyButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _QtyButton({
+    required this.icon,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 34,
+        height: 34,
+        decoration: BoxDecoration(
+          color: const Color(0xFFE8F5F0),
+          borderRadius: BorderRadius.circular(50),
+        ),
+        child: Icon(
+          icon,
+          color: kPrimaryGreen,
+          size: 18,
+        ),
+      ),
     );
   }
 }
@@ -965,28 +1038,28 @@ class _SummaryRow extends StatelessWidget {
   const _SummaryRow({
     required this.label,
     required this.value,
-    required this.isTotal,
+    this.isTotal = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(
           label,
           style: TextStyle(
-            fontSize: isTotal ? 14 : 13,
-            fontWeight: isTotal ? FontWeight.w700 : FontWeight.normal,
+            fontSize: isTotal ? 15 : 13,
+            fontWeight: isTotal ? FontWeight.w800 : FontWeight.w500,
             color: isTotal ? kTextColor : kHintColor,
           ),
         ),
+        const Spacer(),
         Text(
           value,
           style: TextStyle(
-            fontSize: isTotal ? 16 : 13,
-            fontWeight: isTotal ? FontWeight.w700 : FontWeight.normal,
-            color: isTotal ? kPrimaryGreen : kHintColor,
+            fontSize: isTotal ? 17 : 13,
+            fontWeight: FontWeight.w800,
+            color: isTotal ? kPrimaryGreen : kTextColor,
           ),
         ),
       ],
@@ -994,294 +1067,91 @@ class _SummaryRow extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────
-// DIGITAL TICKET SCREEN
-// ─────────────────────────────────────────────
+class _PaymentOption extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
 
-class DigitalTicketScreen extends StatelessWidget {
-  final DateTime selectedDate;
-  final String orderId;
-  final String namaWisata;
-  final String imageUrl;
-
-  const DigitalTicketScreen({
-    super.key,
-    required this.selectedDate,
-    required this.orderId,
-    this.namaWisata = 'Pantai Papuma',
-    this.imageUrl =
-        'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400',
+  const _PaymentOption({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kTextColor),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text(
-          'Tiket Digital',
-          style: TextStyle(
-            color: kPrimaryGreen,
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected ? kPrimaryGreen : const Color(0xFFE0E0E0),
+            width: selected ? 1.5 : 1,
           ),
-        ),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Hero image
-            ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Stack(
-                children: [
-                  Image.network(
-                    imageUrl,
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) =>
-                        Container(height: 200, color: kInputBg),
-                  ),
-                  Positioned(
-                    bottom: 16,
-                    left: 16,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.85),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Text(
-                            'WISATA ALAM',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: kPrimaryGreen,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          namaWisata,
-                          style: const TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
             ),
-            const SizedBox(height: 24),
-
-            // Tanggal kunjungan di tiket — dari date yang dipilih user
+          ],
+        ),
+        child: Row(
+          children: [
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(14),
+              width: 42,
+              height: 42,
               decoration: BoxDecoration(
-                color: const Color(0xFFE8F5F0),
+                color: selected ? const Color(0xFFE8F5F0) : kBgGray,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Row(
+              child: Icon(
+                icon,
+                color: selected ? kPrimaryGreen : kHintColor,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(
-                    Icons.calendar_month_outlined,
-                    color: kPrimaryGreen,
-                    size: 18,
-                  ),
-                  const SizedBox(width: 10),
                   Text(
-                    formatTanggalLengkap(selectedDate),
+                    title,
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: kPrimaryGreen,
+                      fontWeight: FontWeight.w800,
+                      color: kTextColor,
                     ),
                   ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // Status & ID
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'STATUS TIKET',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: kHintColor,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE8F5F0),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: kPrimaryGreen.withOpacity(0.3),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            Icon(Icons.circle, color: kPrimaryGreen, size: 8),
-                            SizedBox(width: 6),
-                            Text(
-                              'Aktif',
-                              style: TextStyle(
-                                color: kPrimaryGreen,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    const Text(
-                      'ID TRANSAKSI',
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: kHintColor,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '#$orderId',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: kTextColor,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-
-            // QR Code area
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: kBgGray,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFDDDDDD), width: 1.5),
-              ),
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Image.network(
-                      'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=JMR-882910',
-                      width: 150,
-                      height: 150,
-                      errorBuilder: (_, __, ___) => Container(
-                        width: 150,
-                        height: 150,
-                        color: kInputBg,
-                        child: const Icon(
-                          Icons.qr_code_2,
-                          size: 80,
-                          color: kHintColor,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Tunjukkan QR Code ini kepada petugas di\npintu masuk lokasi wisata.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 13,
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(
+                      fontSize: 11,
                       color: kHintColor,
-                      height: 1.5,
+                      height: 1.35,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 32),
-
-            Center(
-              child: Icon(
-                Icons.confirmation_number_outlined,
-                color: kHintColor.withOpacity(0.4),
-                size: 36,
-              ),
+            const SizedBox(width: 8),
+            Icon(
+              selected
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: selected ? kPrimaryGreen : kHintColor,
+              size: 22,
             ),
-            const SizedBox(height: 24),
-
-            // Tombol kembali ke homescreen
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pushNamedAndRemoveUntil(
-                    context,
-                    '/home',
-                    (route) => false,
-                  );
-                },
-                icon: const Icon(Icons.home_rounded, size: 20),
-                label: const Text(
-                  'Kembali ke Beranda',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: kPrimaryGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(50),
-                  ),
-                  elevation: 0,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
           ],
         ),
       ),
